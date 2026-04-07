@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+
+# Tauri generated files
+src-tauri/gen/
+
+# Runtime data (user-specific, not source)
+src-tauri/data/
+
+# Logs and temp files
+src-tauri/log.txt
+*.log
+
+# Project-local config (AI tooling, not source)
+CLAUDE.md
+.claude/
+
+# Extracted assets (generated at runtime)
+exe_icon_extracted.png
+
+# Touhou / game data files in src-tauri root
+src-tauri/backup/
+src-tauri/score.dat
+src-tauri/th08.cfg
+
+# OS files
+.DS_Store
+Thumbs.db

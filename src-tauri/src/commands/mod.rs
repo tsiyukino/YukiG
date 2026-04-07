@@ -1,0 +1,14 @@
+pub mod collection_commands;
+pub mod game_status_commands;
+pub mod game_suggest_commands;
+pub mod icon_commands;
+pub mod item_commands;
+pub mod play_session_commands;
+pub mod preview_commands;
+pub mod search_commands;
+pub mod settings_commands;
+pub mod steam_commands;
+pub mod strategy_commands;
+pub mod tag_commands;
+pub mod thumbnail_commands;
+pub mod watcher_commands;

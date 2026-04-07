@@ -1,0 +1,5 @@
+[build]
+# Limit parallel jobs to reduce peak memory usage during compilation.
+# Tauri + Windows crates are very memory-hungry; full parallelism can exhaust
+# the Windows page file causing STATUS_STACK_BUFFER_OVERRUN / os error 1455.
+jobs = 2

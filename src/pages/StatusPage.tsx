@@ -23,10 +23,10 @@ import SteamTab from "@/components/status/SteamTab";
 
 type Tab = "overall" | "local" | "steam";
 
-/** Local item extended with playtime data from strategy metadata. */
 interface LocalItem extends Item {
+  playtime_seconds: number;
   playtime_minutes: number;
-  last_launched: number; // unix seconds, 0 = never
+  last_launched: number;
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -58,15 +58,17 @@ export default function StatusPage() {
 
       const userCollections = collections.filter((c) => c.default_strategy !== "steam_game");
 
-      // One playtime fetch for all items at once
       const allIds = allItems.map((i) => i.id);
       const playtimeMap = allIds.length > 0 ? await strategyGetPlaytimeBulk(allIds) : {};
 
       const allLocalItems: LocalItem[] = allItems.map((item) => {
         const pt = playtimeMap[item.id] ?? {};
+        const secs = parseInt(pt["total_playtime_seconds"] ?? "0", 10) || 0;
+        const mins = parseInt(pt["total_playtime_minutes"] ?? "0", 10) || 0;
         return {
           ...item,
-          playtime_minutes: parseInt(pt["total_playtime_minutes"] ?? "0", 10) || 0,
+          playtime_seconds: secs,
+          playtime_minutes: mins,
           last_launched: parseInt(pt["last_launched"] ?? "0", 10) || 0,
         };
       });

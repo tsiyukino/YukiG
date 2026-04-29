@@ -1,7 +1,6 @@
 import { Clock, ChevronRight } from "lucide-react";
 import { Collection } from "@/types/collection";
 
-/** Formats a minute count into a human-readable duration string. */
 function fmtMinutes(mins: number): string {
   if (mins === 0) return "0h";
   const h = Math.floor(mins / 60);
@@ -25,10 +24,7 @@ interface CollectionRowProps {
   onClick: () => void;
 }
 
-/**
- * A single row in the Local tab's Collections list.
- * Shows a color dot, collection name, item count bar, and optional total playtime.
- */
+/** A single row in the Local tab's Collections list. */
 export default function CollectionRow({ collection, items, maxCount, onClick }: CollectionRowProps) {
   const totalPlaytime = items.reduce((s, i) => s + i.playtime_minutes, 0);
   const pct = maxCount > 0 ? (items.length / maxCount) * 100 : 0;

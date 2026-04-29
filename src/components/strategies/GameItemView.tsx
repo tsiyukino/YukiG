@@ -11,10 +11,20 @@
  * @param folderPath - Absolute path to the game folder
  */
 import { useState } from "react";
-import { Play, FolderOpen, RefreshCw, Terminal, Image } from "lucide-react";
-import { strategyExecuteLaunch, shellOpenPath } from "@/services/tauriCommands";
+import { Play, FolderOpen, RefreshCw, Terminal, Image, Clock } from "lucide-react";
+import { strategyExecuteLaunchTracked, shellOpenPath } from "@/services/tauriCommands";
 import { useStrategy } from "@/hooks/useStrategy";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
+
+function fmtSeconds(secs: number): string {
+  if (secs === 0) return "Never played";
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  return `${s}s`;
+}
 
 interface GameItemViewProps {
   itemId: string;
@@ -25,21 +35,31 @@ interface GameItemViewProps {
 export default function GameItemView({ itemId, folderPath }: GameItemViewProps) {
   const { metadata, loading, error, rescan } = useStrategy(itemId, folderPath, "game");
   const [launching, setLaunching] = useState(false);
+  const [running, setRunning] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const exePath = metadata["exe_path"] ?? "";
   const modFolder = metadata["mod_folder"] ?? "";
   const screenshotFolder = metadata["screenshot_folder"] ?? "";
+  const totalSecs = parseInt(metadata["total_playtime_seconds"] ?? "0", 10) || 0;
+  const lastLaunched = parseInt(metadata["last_launched"] ?? "0", 10) || 0;
 
   async function handleLaunch() {
     setActionError(null);
     setLaunching(true);
     try {
-      await strategyExecuteLaunch(itemId, folderPath, "game");
+      // Brief "Launching…" state, then switch to "Running…" once the process starts.
+      await new Promise((r) => setTimeout(r, 300));
+      setLaunching(false);
+      setRunning(true);
+      await strategyExecuteLaunchTracked(itemId, folderPath, "game");
+      // Refresh metadata so updated playtime shows without a manual rescan.
+      rescan();
     } catch (e) {
       setActionError(String(e));
     } finally {
       setLaunching(false);
+      setRunning(false);
     }
   }
 
@@ -73,12 +93,28 @@ export default function GameItemView({ itemId, folderPath }: GameItemViewProps) 
         <button
           className="giv-action-btn giv-action-btn--primary"
           onClick={handleLaunch}
-          disabled={!exePath || launching}
+          disabled={!exePath || launching || running}
           title={exePath ? "Launch game" : "No executable set"}
         >
           <Play size={12} />
-          {launching ? "Launching…" : "Launch"}
+          {launching ? "Launching…" : running ? "Running…" : "Launch"}
         </button>
+      </div>
+
+      {/* Playtime */}
+      <div className="giv-row">
+        <div className="giv-row-left">
+          <Clock size={13} className="giv-row-icon" />
+          <div className="giv-row-content">
+            <span className="giv-row-label">Time Played</span>
+            <span className="giv-path">{fmtSeconds(totalSecs)}</span>
+            {lastLaunched > 0 && (
+              <span className="giv-last-launched">
+                Last played {new Date(lastLaunched * 1000).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Mod folder */}
@@ -188,6 +224,10 @@ export default function GameItemView({ itemId, folderPath }: GameItemViewProps) 
           font-size: 12px;
           color: var(--color-text-muted);
           font-style: italic;
+        }
+        .giv-last-launched {
+          font-size: 10.5px;
+          color: var(--color-text-muted);
         }
         .giv-action-btn {
           display: inline-flex;

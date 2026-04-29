@@ -165,26 +165,23 @@ pub fn strategy_execute_launch(
     Ok(())
 }
 
-/// Executes the launch action for an item and tracks playtime.
+/// Executes the launch action for an item and tracks playtime via a Job Object.
 ///
-/// For `run_exe` actions, spawns the process, waits for it to exit, then
-/// records elapsed seconds as a session. Updates two metadata keys:
+/// Runs the blocking wait on a dedicated thread via `spawn_blocking` so the
+/// Tauri async executor and UI remain responsive while the game is running.
+///
+/// Playtime is stored in two metadata keys:
+/// - `total_playtime_seconds`: cumulative seconds across all sessions (authoritative)
+/// - `total_playtime_minutes`: derived from seconds, for display
 /// - `last_launched`: Unix timestamp (seconds) of this launch
-/// - `total_playtime_minutes`: cumulative minutes across all sessions
-///
-/// Blocks until the game process exits, so this must be called from a
-/// background thread on the frontend (it will not time out normally).
-///
-/// For `open_with_default` actions, falls back to fire-and-forget launch
-/// since process lifetime cannot be tracked via the opener plugin.
 ///
 /// # Errors
 /// Returns an error string if the strategy is unknown, metadata fetch fails,
 /// there is no launch action, or the process could not be spawned.
 #[tauri::command]
-pub fn strategy_execute_launch_tracked(
-    db: State<DbConnection>,
-    registry: State<StrategyRegistry>,
+pub async fn strategy_execute_launch_tracked(
+    db: State<'_, DbConnection>,
+    registry: State<'_, StrategyRegistry>,
     app: tauri::AppHandle,
     item_id: String,
     folder_path: String,
@@ -194,97 +191,168 @@ pub fn strategy_execute_launch_tracked(
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let strategy = registry.get(&strategy_type).map_err(|e| e.to_string())?;
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
-    let metadata = strategy_metadata_queries::get_by_item(&conn, &item_id)
-        .map_err(|e| e.to_string())?;
-
-    let action = strategy
-        .get_launch_action(Path::new(&folder_path), &metadata)
-        .ok_or_else(|| "No launch action available for this item.".to_string())?;
+    let action = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        let metadata = strategy_metadata_queries::get_by_item(&conn, &item_id)
+            .map_err(|e| e.to_string())?;
+        strategy
+            .get_launch_action(Path::new(&folder_path), &metadata)
+            .ok_or_else(|| "No launch action available for this item.".to_string())?
+    };
+    // DB lock released here before the blocking wait begins.
 
     let now_secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
 
-    let started_at = chrono::DateTime::<chrono::Utc>::from_timestamp(now_secs as i64, 0)
-        .unwrap_or_else(chrono::Utc::now)
-        .to_rfc3339();
-    let session_id = uuid::Uuid::new_v4().to_string();
-
-    // Record session start before spawning so the row exists even if the app crashes.
-    conn.execute(
-        "INSERT INTO play_sessions (id, item_id, started_at, ended_at) VALUES (?1, ?2, ?3, NULL)",
-        rusqlite::params![session_id, item_id, started_at],
-    ).map_err(|e| e.to_string())?;
-
-    let session_minutes: u64 = match action.action_type.as_str() {
+    let session_secs: u64 = match action.action_type.as_str() {
         "run_exe" => {
-            let mut child = std::process::Command::new(&action.target_path)
-                .spawn()
-                .map_err(|e| format!("Failed to launch '{}': {}", action.target_path, e))?;
-
-            // Release the DB lock while the game runs so other queries can proceed.
-            drop(conn);
-
-            let _ = child.wait();
-
-            let elapsed = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-                .saturating_sub(now_secs);
-
-            let ended_at = chrono::Utc::now().to_rfc3339();
-
-            // Re-acquire lock to update metadata and close session.
-            let conn2 = db.0.lock().map_err(|e| e.to_string())?;
-
-            // Close play_sessions row.
-            conn2.execute(
-                "UPDATE play_sessions SET ended_at = ?1 WHERE id = ?2",
-                rusqlite::params![ended_at, session_id],
-            ).map_err(|e| e.to_string())?;
-
-            let prev = strategy_metadata_queries::get_by_item(&conn2, &item_id)
-                .unwrap_or_default();
-            let prev_minutes: u64 = prev
-                .get("total_playtime_minutes")
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(0);
-            let session_mins = elapsed / 60;
-            let new_total = prev_minutes + session_mins;
-            let mut updates = HashMap::new();
-            updates.insert("last_launched".to_string(), now_secs.to_string());
-            updates.insert("total_playtime_minutes".to_string(), new_total.to_string());
-            strategy_metadata_queries::upsert_all(&conn2, &item_id, &updates)
-                .map_err(|e| e.to_string())?;
-
-            session_mins
+            let target = action.target_path.clone();
+            // Offload the blocking process-tree wait to a dedicated OS thread.
+            tokio::task::spawn_blocking(move || -> Result<u64, String> {
+                #[cfg(target_os = "windows")]
+                { wait_for_process_tree_windows(&target) }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    let mut child = std::process::Command::new(&target)
+                        .spawn()
+                        .map_err(|e| format!("Failed to launch '{}': {}", target, e))?;
+                    let start = std::time::Instant::now();
+                    let _ = child.wait();
+                    Ok(start.elapsed().as_secs())
+                }
+            })
+            .await
+            .map_err(|e: tokio::task::JoinError| e.to_string())??
         }
         "open_with_default" => {
             app.opener()
                 .open_path(&action.target_path, None::<&str>)
                 .map_err(|e| e.to_string())?;
-            // Close session immediately — can't track open_with_default lifetime.
-            let ended_at = chrono::Utc::now().to_rfc3339();
-            conn.execute(
-                "UPDATE play_sessions SET ended_at = ?1 WHERE id = ?2",
-                rusqlite::params![ended_at, session_id],
-            ).map_err(|e| e.to_string())?;
-            // Update last_launched but not playtime.
-            let mut ts_update = HashMap::new();
-            ts_update.insert("last_launched".to_string(), now_secs.to_string());
-            strategy_metadata_queries::upsert_all(&conn, &item_id, &ts_update)
-                .map_err(|e| e.to_string())?;
             0
         }
-        other => {
-            return Err(format!("Unknown action type: {}", other));
-        }
+        other => return Err(format!("Unknown action type: {}", other)),
     };
 
-    Ok(session_minutes)
+    // Re-acquire lock to persist results.
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let prev = strategy_metadata_queries::get_by_item(&conn, &item_id).unwrap_or_default();
+
+    let prev_secs: u64 = prev
+        .get("total_playtime_seconds")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(|| {
+            prev.get("total_playtime_minutes")
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(0) * 60
+        });
+
+    let new_total_secs = prev_secs + session_secs;
+    let new_total_mins = new_total_secs / 60;
+
+    let mut updates = HashMap::new();
+    updates.insert("total_playtime_seconds".to_string(), new_total_secs.to_string());
+    updates.insert("total_playtime_minutes".to_string(), new_total_mins.to_string());
+    updates.insert("last_launched".to_string(), now_secs.to_string());
+    strategy_metadata_queries::upsert_all(&conn, &item_id, &updates)
+        .map_err(|e| e.to_string())?;
+
+    Ok(session_secs)
+}
+
+/// Spawns an exe inside a Windows Job Object and blocks until every process in
+/// the job tree has exited. Returns the elapsed wall-clock seconds.
+///
+/// Uses `CreateProcessW` with `CREATE_SUSPENDED` so the process is in the job
+/// before its first instruction runs, then resumes via `ResumeThread`. After the
+/// direct child exits, polls `QueryInformationJobObject` every 500 ms until
+/// `ActiveProcesses == 0`. This handles launcher stubs that spawn the real game
+/// and exit immediately.
+#[cfg(target_os = "windows")]
+fn wait_for_process_tree_windows(exe_path: &str) -> Result<u64, String> {
+    use std::time::Instant;
+    use windows::core::PWSTR;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW,
+        JobObjectBasicAccountingInformation,
+        JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
+        QueryInformationJobObject,
+    };
+    use windows::Win32::System::Threading::{
+        CreateProcessW, ResumeThread, WaitForSingleObject,
+        PROCESS_INFORMATION, STARTUPINFOW,
+        CREATE_SUSPENDED, INFINITE,
+    };
+
+    let job = unsafe { CreateJobObjectW(None, None) }
+        .map_err(|e| format!("CreateJobObjectW failed: {}", e))?;
+
+    let mut exe_wide: Vec<u16> = exe_path.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut si = STARTUPINFOW {
+        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+        ..Default::default()
+    };
+    let mut pi = PROCESS_INFORMATION::default();
+
+    let spawn_result = unsafe {
+        CreateProcessW(
+            None,
+            Some(PWSTR(exe_wide.as_mut_ptr())),
+            None,
+            None,
+            false,
+            CREATE_SUSPENDED,
+            None,
+            None,
+            &mut si,
+            &mut pi,
+        )
+    };
+
+    if let Err(e) = spawn_result {
+        unsafe { CloseHandle(job).ok() };
+        return Err(format!("CreateProcessW failed: {}", e));
+    }
+
+    let start = Instant::now();
+
+    if let Err(e) = unsafe { AssignProcessToJobObject(job, pi.hProcess) } {
+        unsafe {
+            windows::Win32::System::Threading::TerminateProcess(pi.hProcess, 1).ok();
+            CloseHandle(pi.hProcess).ok();
+            CloseHandle(pi.hThread).ok();
+            CloseHandle(job).ok();
+        }
+        return Err(format!("AssignProcessToJobObject failed: {}", e));
+    }
+
+    // Resume the primary thread now that it's safely in the job.
+    unsafe { ResumeThread(pi.hThread) };
+    unsafe { CloseHandle(pi.hThread).ok() };
+
+    // Wait for the direct child to exit, then poll for grandchildren.
+    unsafe { WaitForSingleObject(pi.hProcess, INFINITE) };
+    unsafe { CloseHandle(pi.hProcess).ok() };
+
+    loop {
+        let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+        let ok = unsafe {
+            QueryInformationJobObject(
+                Some(job),
+                JobObjectBasicAccountingInformation,
+                &mut info as *mut _ as *mut std::ffi::c_void,
+                std::mem::size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32,
+                None,
+            )
+        };
+        if ok.is_err() || info.ActiveProcesses == 0 { break; }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+
+    unsafe { CloseHandle(job).ok() };
+    Ok(start.elapsed().as_secs())
 }
 
 /// Returns playtime summary for all items in a collection.
@@ -306,23 +374,32 @@ pub fn strategy_get_playtime_bulk(
             .unwrap_or_default();
         let mut entry = HashMap::new();
 
-        // Local games store playtime in `total_playtime_minutes` + `last_launched`.
-        // Steam games store it in `steam_playtime_minutes` + `steam_last_played`.
-        // Fall back so both game types report accurate playtime to the Play page.
-        let playtime = meta
-            .get("total_playtime_minutes")
-            .or_else(|| meta.get("steam_playtime_minutes"))
-            .cloned();
-        if let Some(v) = playtime {
-            entry.insert("total_playtime_minutes".to_string(), v);
-        }
-
-        let last_launched = meta
-            .get("last_launched")
-            .or_else(|| meta.get("steam_last_played"))
-            .cloned();
-        if let Some(v) = last_launched {
-            entry.insert("last_launched".to_string(), v);
+        // Steam items are identified by the presence of `steam_app_type` in metadata.
+        let is_steam = meta.contains_key("steam_app_type");
+        if is_steam {
+            if let Some(v) = meta.get("steam_playtime_minutes").cloned() {
+                entry.insert("total_playtime_minutes".to_string(), v);
+            }
+            if let Some(v) = meta.get("steam_last_played").cloned() {
+                entry.insert("last_launched".to_string(), v);
+            }
+        } else {
+            // Local games: use seconds as the authoritative value; derive minutes for display.
+            let secs: u64 = meta.get("total_playtime_seconds")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or_else(|| {
+                    // Migrate from old minutes-only data.
+                    meta.get("total_playtime_minutes")
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(0) * 60
+                });
+            if secs > 0 {
+                entry.insert("total_playtime_seconds".to_string(), secs.to_string());
+                entry.insert("total_playtime_minutes".to_string(), (secs / 60).to_string());
+            }
+            if let Some(v) = meta.get("last_launched").cloned() {
+                entry.insert("last_launched".to_string(), v);
+            }
         }
 
         // Pass through `is_installed` for the Play page installed-only filter.

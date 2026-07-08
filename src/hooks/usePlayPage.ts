@@ -256,9 +256,10 @@ export function usePlayPage(): UsePlayPageReturn {
         // survives re-renders. Only include a bucket if at least one real tag
         // from it exists in the library.
         const mergedMoods: Tag[] = [];
-        if (singleIds.size > 0) mergedMoods.push({ id: "__single", name: "Single-player", color: "#6366f1", tag_type: "mood", group_id: null });
-        if (coopIds.size   > 0) mergedMoods.push({ id: "__coop",   name: "Co-op",         color: "#22c55e", tag_type: "mood", group_id: null });
-        if (pvpIds.size    > 0) mergedMoods.push({ id: "__pvp",    name: "PvP",            color: "#ef4444", tag_type: "mood", group_id: null });
+        const synthetic = { group_id: null, icon: "", description: "", sort_order: 0 } as const;
+        if (singleIds.size > 0) mergedMoods.push({ id: "__single", name: "Single-player", color: "#6366f1", tag_type: "mood", ...synthetic });
+        if (coopIds.size   > 0) mergedMoods.push({ id: "__coop",   name: "Co-op",         color: "#22c55e", tag_type: "mood", ...synthetic });
+        if (pvpIds.size    > 0) mergedMoods.push({ id: "__pvp",    name: "PvP",            color: "#ef4444", tag_type: "mood", ...synthetic });
 
         // Other mood tags that don't fall into the three buckets pass through unchanged.
         const otherMoods = allTags.filter(

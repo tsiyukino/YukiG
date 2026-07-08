@@ -31,6 +31,12 @@ export interface Tag {
   group_id: string | null;
   /** What kind of tag this is; drives display and placement. */
   tag_type: TagType;
+  /** Icon identifier for grouping tags (successor to collection icon). Empty otherwise. */
+  icon: string;
+  /** Optional description for grouping tags. Empty otherwise. */
+  description: string;
+  /** Manual sort position for grouping tags. 0 otherwise. */
+  sort_order: number;
 }
 
 /** A named group of tags with a user-defined prefix string. */

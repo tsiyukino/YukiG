@@ -57,6 +57,7 @@ fn all_migrations() -> Vec<(&'static str, &'static str)> {
         ("012_game_status", include_str!("../../migrations/012_game_status.sql")),
         ("013_nullable_collection", include_str!("../../migrations/013_nullable_collection.sql")),
         ("014_steam_system_collection", include_str!("../../migrations/014_steam_system_collection.sql")),
+        ("015_collections_to_grouping_tags", include_str!("../../migrations/015_collections_to_grouping_tags.sql")),
     ]
 }
 
@@ -219,6 +220,59 @@ mod tests {
             .unwrap();
         assert_eq!(id, "steam-system");
         assert_eq!(name, "Steam");
+    }
+
+    /// Migration 015 turns each collection into a grouping tag and migrates
+    /// membership into item_tags, reusing a same-named tag instead of
+    /// duplicating it.
+    #[test]
+    fn migration_015_migrates_collections_to_grouping_tags() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        ensure_migrations_table(&conn).unwrap();
+        for (name, sql) in all_migrations() {
+            if name == "015_collections_to_grouping_tags" {
+                break;
+            }
+            apply(&conn, name, sql).unwrap();
+        }
+
+        // Two collections; "RPGs" also already exists as a plain tag (collision).
+        conn.execute_batch(
+            "INSERT INTO collections (id, name, icon, color, description, sort_order, created_at, updated_at)
+             VALUES ('c1', 'RPGs', 'sword', '#f00', 'role playing', 2, 't', 't'),
+                    ('c2', 'Indie', 'star', '#0f0', '', 5, 't', 't');
+             INSERT INTO tags (id, name, color, group_id, tag_type) VALUES ('t-rpg', 'RPGs', '#999', NULL, 'regular');
+             INSERT INTO items (id, collection_id, name, folder_path, strategy_type, created_at, updated_at)
+             VALUES ('i1', 'c1', 'Skyrim', 'C:\\s', 'game', 't', 't'),
+                    ('i2', 'c2', 'Celeste', 'C:\\c', 'game', 't', 't');",
+        ).unwrap();
+
+        let sql = all_migrations().into_iter()
+            .find(|(n, _)| *n == "015_collections_to_grouping_tags").unwrap().1;
+        apply(&conn, "015_collections_to_grouping_tags", sql).unwrap();
+
+        // Collision: the pre-existing "RPGs" tag is reused and promoted, not duplicated.
+        let rpg_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tags WHERE name = 'RPGs'", [], |r| r.get(0)).unwrap();
+        assert_eq!(rpg_count, 1, "same-named tag must be reused, not duplicated");
+        let (rpg_type, rpg_icon): (String, String) = conn
+            .query_row("SELECT tag_type, icon FROM tags WHERE name = 'RPGs'", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+        assert_eq!(rpg_type, "grouping");
+        assert_eq!(rpg_icon, "sword", "reused tag adopts the collection's icon");
+
+        // "Indie" got a fresh grouping tag reusing the collection id.
+        let indie_type: String = conn
+            .query_row("SELECT tag_type FROM tags WHERE id = 'c2'", [], |r| r.get(0)).unwrap();
+        assert_eq!(indie_type, "grouping");
+
+        // Membership migrated into item_tags.
+        let skyrim_tag: String = conn
+            .query_row("SELECT t.name FROM item_tags it JOIN tags t ON t.id = it.tag_id WHERE it.item_id = 'i1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(skyrim_tag, "RPGs");
+        let celeste_tag: String = conn
+            .query_row("SELECT t.name FROM item_tags it JOIN tags t ON t.id = it.tag_id WHERE it.item_id = 'i2'", [], |r| r.get(0)).unwrap();
+        assert_eq!(celeste_tag, "Indie");
     }
 
     /// A migration that leaves a dangling foreign key must roll back and not be

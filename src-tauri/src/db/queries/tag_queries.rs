@@ -13,6 +13,9 @@ fn row_to_tag(row: &rusqlite::Row) -> rusqlite::Result<Tag> {
         color: row.get(2)?,
         group_id: row.get(3)?,
         tag_type: row.get(4)?,
+        icon: row.get(5)?,
+        description: row.get(6)?,
+        sort_order: row.get(7)?,
     })
 }
 
@@ -21,7 +24,7 @@ fn row_to_tag(row: &rusqlite::Row) -> rusqlite::Result<Tag> {
 /// Retrieves all tags ordered alphabetically.
 pub fn get_all(conn: &Connection) -> Result<Vec<Tag>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, color, group_id, tag_type FROM tags ORDER BY name ASC",
+        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags ORDER BY name ASC",
     )?;
     let rows = stmt.query_map([], row_to_tag)?;
     rows.collect()
@@ -35,7 +38,7 @@ pub fn create(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
         rusqlite::params![&id, name, color],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
         [&id],
         row_to_tag,
     )
@@ -52,7 +55,7 @@ pub fn create_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) 
         rusqlite::params![&id, name, color, tag_type],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
         [&id],
         row_to_tag,
     )
@@ -65,7 +68,7 @@ pub fn create_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) 
 /// functional / mood tags without creating duplicates.
 pub fn upsert_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) -> Result<Tag> {
     let existing = conn.query_row(
-        "SELECT id, name, color, group_id, tag_type FROM tags WHERE name = ?1",
+        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE name = ?1",
         rusqlite::params![name],
         row_to_tag,
     );
@@ -103,7 +106,7 @@ pub fn create_in_group(conn: &Connection, name: &str, color: &str, group_id: &st
         rusqlite::params![&id, name, color, group_id],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
         [&id],
         row_to_tag,
     )
@@ -116,7 +119,7 @@ pub fn set_group(conn: &Connection, tag_id: &str, group_id: Option<&str>) -> Res
         rusqlite::params![group_id, tag_id],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
         [tag_id],
         row_to_tag,
     )
@@ -131,7 +134,7 @@ pub fn delete(conn: &Connection, tag_id: &str) -> Result<()> {
 /// Returns all tags assigned to a specific item.
 pub fn get_by_item(conn: &Connection, item_id: &str) -> Result<Vec<Tag>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.name, t.color, t.group_id, t.tag_type
+        "SELECT t.id, t.name, t.color, t.group_id, t.tag_type, t.icon, t.description, t.sort_order
          FROM tags t
          JOIN item_tags it ON t.id = it.tag_id
          WHERE it.item_id = ?1
@@ -203,7 +206,7 @@ pub fn get_by_items_bulk(conn: &Connection, item_ids: &[String]) -> Result<Vec<(
         .join(", ");
 
     let sql = format!(
-        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type
+        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type, t.icon, t.description, t.sort_order
          FROM item_tags it
          JOIN tags t ON t.id = it.tag_id
          WHERE it.item_id IN ({})
@@ -226,6 +229,9 @@ pub fn get_by_items_bulk(conn: &Connection, item_ids: &[String]) -> Result<Vec<(
             color: row.get(3)?,
             group_id: row.get(4)?,
             tag_type: row.get(5)?,
+            icon: row.get(6)?,
+            description: row.get(7)?,
+            sort_order: row.get(8)?,
         };
         Ok((item_id, tag))
     })?;
@@ -235,7 +241,7 @@ pub fn get_by_items_bulk(conn: &Connection, item_ids: &[String]) -> Result<Vec<(
 /// Returns all (item_id, tag) pairs for items belonging to a collection.
 pub fn get_by_collection(conn: &Connection, collection_id: &str) -> Result<Vec<(String, Tag)>> {
     let mut stmt = conn.prepare(
-        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type
+        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type, t.icon, t.description, t.sort_order
          FROM item_tags it
          JOIN tags t ON t.id = it.tag_id
          JOIN items i ON i.id = it.item_id
@@ -250,6 +256,9 @@ pub fn get_by_collection(conn: &Connection, collection_id: &str) -> Result<Vec<(
             color: row.get(3)?,
             group_id: row.get(4)?,
             tag_type: row.get(5)?,
+            icon: row.get(6)?,
+            description: row.get(7)?,
+            sort_order: row.get(8)?,
         };
         Ok((item_id, tag))
     })?;

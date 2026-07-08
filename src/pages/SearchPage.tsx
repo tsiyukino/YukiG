@@ -15,6 +15,7 @@ import { Tag } from "@/types/tag";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { strategyLabel } from "@/utils/strategyLabel";
+import { itemRoute } from "@/utils/itemNavigation";
 import PageTitle from "@/components/common/PageTitle";
 import styles from "./SearchPage.module.css";
 
@@ -192,7 +193,7 @@ export default function SearchPage() {
                 <ItemResult
                   key={item.id}
                   item={item}
-                  onClick={() => navigate(`/collections/${item.collection_id}/items/${item.id}`)}
+                  onClick={() => { const { to, options } = itemRoute(item); navigate(to, options); }}
                 />
               ))}
             </ResultSection>
@@ -229,7 +230,7 @@ export default function SearchPage() {
                   <ItemResult
                     key={item.id}
                     item={item}
-                    onClick={() => navigate(`/collections/${item.collection_id}/items/${item.id}`)}
+                    onClick={() => { const { to, options } = itemRoute(item); navigate(to, options); }}
                   />
                 ))}
               </ResultSection>

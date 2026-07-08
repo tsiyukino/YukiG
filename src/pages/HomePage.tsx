@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { Layers, Heart, Gamepad2 } from "lucide-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useHomeData } from "@/hooks/useHomeData";
+import { itemRoute } from "@/utils/itemNavigation";
 import { FavoriteItem } from "@/types/item";
 import SteamIcon from "@/components/common/SteamIcon";
 import HeroSection from "@/components/home/HeroSection";
@@ -54,11 +55,8 @@ export default function HomePage() {
   }, [data]);
 
   function openFavorite(item: FavoriteItem) {
-    if (item.strategy_type === "steam_game") {
-      navigate("/steam", { state: { openItemId: item.id } });
-    } else {
-      navigate(`/collections/${item.collection_id}/items/${item.id}`);
-    }
+    const { to, options } = itemRoute(item);
+    navigate(to, options);
   }
 
   return (
@@ -67,10 +65,11 @@ export default function HomePage() {
         featured={featuredFav}
         collectionName={featuredCollection?.name}
         collectionColor={featuredCollection?.color}
-        onOpenFeatured={() =>
-          featuredFav &&
-          navigate(`/collections/${featuredFav.collection_id}/items/${featuredFav.id}`)
-        }
+        onOpenFeatured={() => {
+          if (!featuredFav) return;
+          const { to, options } = itemRoute(featuredFav);
+          navigate(to, options);
+        }}
       />
 
       {loading && <div className={styles.loading}><div className={styles.loadingBar} /></div>}

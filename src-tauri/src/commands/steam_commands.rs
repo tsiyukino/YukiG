@@ -22,6 +22,11 @@ use crate::db::queries::{collection_queries, item_queries, strategy_metadata_que
 use crate::db::queries::item_queries::NewItem;
 use crate::services::steam::{self, SteamScanResult, SteamUser};
 
+/// Fixed id of the system "Steam" collection (created by migration 014). All
+/// synced Steam games are filed here so they have a home collection card
+/// without polluting the user's own collections.
+const STEAM_SYSTEM_COLLECTION_ID: &str = "steam-system";
+
 // ─── Steam category → tag mapping ────────────────────────────────────────────
 
 /// Steam category IDs that indicate online multiplayer / PvP activity.
@@ -94,6 +99,31 @@ fn apply_steam_category_tags(
             if let Ok(tag) = result {
                 let _ = tag_queries::assign(conn, item_id, &tag.id);
             }
+        }
+    }
+}
+
+/// Color for tags derived from Steam Collections (Steam's blue-grey).
+const STEAM_COLLECTION_TAG_COLOR: &str = "#66c0f4";
+
+/// Maps a game's Steam Collections to regular tags and assigns them.
+///
+/// A Steam Collection is a many-to-many grouping (a game can be in several),
+/// so it maps to tags rather than to a single YukiG collection. The "Favorites"
+/// collection is skipped — it is surfaced through the item's `is_favorite`
+/// flag, not as a tag.
+fn apply_steam_collection_tags(
+    conn: &rusqlite::Connection,
+    item_id: &str,
+    collections: &[String],
+) {
+    for name in collections {
+        let name = name.trim();
+        if name.is_empty() || name.eq_ignore_ascii_case("favorites") {
+            continue;
+        }
+        if let Ok(tag) = tag_queries::upsert_regular(conn, name, STEAM_COLLECTION_TAG_COLOR) {
+            let _ = tag_queries::assign(conn, item_id, &tag.id);
         }
     }
 }
@@ -316,7 +346,7 @@ pub fn steam_import(
 
         let folder_path = game.install_path.clone().unwrap_or_default();
         let new_item = NewItem {
-            collection_id,
+            collection_id: Some(collection_id),
             parent_id: None,
             name: game.name.clone(),
             folder_path,
@@ -471,12 +501,14 @@ pub struct SyncResult {
     pub errors: Vec<String>,
 }
 
-/// Syncs the full Steam library into YukiG.
+/// Syncs the full Steam library (current active account) into YukiG.
 ///
 /// - Scans Steam (hidden games already excluded by the scanner).
-/// - For each game: upserts a YukiG collection (by Steam collection name) and item.
-/// - Updates metadata for existing items (install path, size, images).
-/// - Removes YukiG items whose Steam app ID is no longer in the library.
+/// - Files every game under the system "Steam" collection as a `steam_game`
+///   item; Steam Collections become tags.
+/// - Updates name / path / metadata / tags for games already imported.
+/// - Removes items whose Steam app ID is no longer in the scanned library
+///   (e.g. uninstalled from this account, or after an account switch).
 /// - Safe to call on startup or on demand.
 ///
 /// # Errors
@@ -487,12 +519,6 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
     let scan = steam::scan(&steam_path)?;
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut result = SyncResult { added: 0, updated: 0, removed: 0, errors: Vec::new() };
-
-    // Build cache of existing collections by name.
-    let existing_cols = collection_queries::get_all(&conn).map_err(|e| e.to_string())?;
-    let mut col_cache: HashMap<String, String> = existing_cols.iter()
-        .map(|c| (c.name.clone(), c.id.clone()))
-        .collect();
 
     // Build set of all app IDs in this scan (hidden already excluded).
     let scan_ids: std::collections::HashSet<u64> = scan.games.iter().map(|g| g.app_id).collect();
@@ -509,38 +535,12 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
         imports
     };
 
-    // Upsert each game from the scan.
+    // Upsert each game from the scan. Steam games are filed under the system
+    // "Steam" collection so they have a home card without cluttering the user's
+    // own collections. Steam Collections (the user's in-Steam groupings) map to
+    // tags instead (see apply_steam_collection_tags), which correctly models a
+    // game belonging to several groupings at once.
     for game in &scan.games {
-        let col_name = if game.collections.is_empty() {
-            "Steam — Uncategorized".to_string()
-        } else {
-            game.collections[0].clone()
-        };
-
-        // Ensure the collection exists.
-        let collection_id = match col_cache.get(&col_name) {
-            Some(id) => id.clone(),
-            None => {
-                let new_col = crate::db::models::NewCollection {
-                    name: col_name.clone(),
-                    icon: "steam".to_string(),
-                    color: "#1b2838".to_string(),
-                    description: format!("Steam collection: {}", col_name),
-                    default_strategy: "steam_game".to_string(),
-                };
-                match collection_queries::create(&conn, &new_col) {
-                    Ok(col) => {
-                        col_cache.insert(col_name.clone(), col.id.clone());
-                        col.id
-                    }
-                    Err(e) => {
-                        result.errors.push(format!("Collection '{}': {}", col_name, e));
-                        continue;
-                    }
-                }
-            }
-        };
-
         let mut metadata = HashMap::new();
         metadata.insert("steam_app_id".to_string(), game.app_id.to_string());
         metadata.insert("steam_launch_url".to_string(), format!("steam://rungameid/{}", game.app_id));
@@ -569,20 +569,27 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
         let sort_order = if game.is_installed { 0i64 } else { 10000i64 };
 
         if let Some(item_id) = existing_imports.get(&game.app_id) {
-            // Update name, path, collection, and install status.
-            // is_favorite is NOT overwritten — user may have set it manually in YukiG.
-            // Steam's own "Favorites" collection is only used as the initial value on insert.
+            // Update name, path, and install status. is_favorite is NOT
+            // overwritten — the user may have set it manually.
             let folder_path = game.install_path.clone().unwrap_or_default();
             let _ = conn.execute(
-                "UPDATE items SET name = ?1, folder_path = ?2, collection_id = ?3, \
-                 sort_order = ?4, updated_at = datetime('now') WHERE id = ?5",
-                rusqlite::params![&game.name, &folder_path, &collection_id, sort_order, item_id],
+                "UPDATE items SET name = ?1, folder_path = ?2, \
+                 sort_order = ?3, updated_at = datetime('now') WHERE id = ?4",
+                rusqlite::params![&game.name, &folder_path, sort_order, item_id],
+            );
+            // File under the Steam collection if the game is currently un-filed
+            // (never filed, or its old auto-created collection was removed). A
+            // collection the user deliberately chose is left untouched.
+            let _ = conn.execute(
+                "UPDATE items SET collection_id = ?1 WHERE id = ?2 AND collection_id IS NULL",
+                rusqlite::params![STEAM_SYSTEM_COLLECTION_ID, item_id],
             );
             if let Err(e) = strategy_metadata_queries::upsert_all(&conn, item_id, &metadata) {
                 result.errors.push(format!("Metadata update for '{}': {}", game.name, e));
             }
-            // Update mood tags and online status on every sync (categories may have changed).
+            // Update tags and online status on every sync (categories/collections may have changed).
             apply_steam_category_tags(&conn, item_id, &game.categories);
+            apply_steam_collection_tags(&conn, item_id, &game.collections);
             if is_online_active(&game.categories) {
                 let _ = conn.execute(
                     "INSERT INTO game_status (item_id, story_status, online_status, snooze_until) \
@@ -594,10 +601,10 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
             }
             result.updated += 1;
         } else {
-            // Insert new item.
+            // Insert new item, filed under the system Steam collection.
             let folder_path = game.install_path.clone().unwrap_or_default();
             let new_item = item_queries::NewItem {
-                collection_id,
+                collection_id: Some(STEAM_SYSTEM_COLLECTION_ID.to_string()),
                 parent_id: None,
                 name: game.name.clone(),
                 folder_path,
@@ -620,6 +627,7 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
                 result.errors.push(format!("Metadata for '{}': {}", game.name, e));
             }
             apply_steam_category_tags(&conn, &item.id, &game.categories);
+            apply_steam_collection_tags(&conn, &item.id, &game.collections);
             if is_online_active(&game.categories) {
                 let _ = conn.execute(
                     "INSERT INTO game_status (item_id, story_status, online_status, snooze_until) \

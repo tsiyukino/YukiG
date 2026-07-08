@@ -104,7 +104,7 @@ pub fn item_create(
     };
 
     let input = NewItem {
-        collection_id,
+        collection_id: Some(collection_id),
         parent_id,
         name,
         folder_path: folder_path.clone(),

@@ -67,28 +67,30 @@ export function useHomeData(): UseHomeDataReturn {
       const userCollections = collections.filter((c) => c.default_strategy !== "steam_game");
       const steamCollections = collections.filter((c) => c.default_strategy === "steam_game");
 
-      // Fetch items for user collections only (for the collections overview count).
-      // Steam items are counted via DB-stored steam collections — no live scan needed.
-      const [itemResults, ...steamItemResults] = await Promise.all([
+      // Fetch items for every collection, user and Steam alike. Steam games are
+      // first-class library items now, so they belong in allItems — the
+      // now-playing banner and any all-games consumer resolve against it.
+      const [userItemResults, ...steamItemResults] = await Promise.all([
         Promise.all(userCollections.map((c) => itemGetByCollection(c.id))),
         ...steamCollections.map((c) => itemGetByCollection(c.id)),
       ]);
-      const userItems = (itemResults as FavoriteItem[][]).flat();
-      const steamGameCount = steamItemResults.flat().length;
+      const userItems = (userItemResults as FavoriteItem[][]).flat();
+      const steamItems = (steamItemResults as FavoriteItem[][]).flat();
+      const allItems = [...userItems, ...steamItems];
 
       const stats = {
         collections: userCollections.length + steamCollections.length,
-        games: userItems.length + steamGameCount,
+        games: allItems.length,
         favorites: allFavorites.length,
         tags: tags.length,
       };
 
       setData({
         collections: userCollections,
-        allItems: userItems,
+        allItems,
         allFavorites,
         tags,
-        steamGameCount,
+        steamGameCount: steamItems.length,
         stats,
       });
     } catch (err) {

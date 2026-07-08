@@ -74,9 +74,11 @@ export default function StatusPage() {
         };
       });
 
-      // Group items by collection
+      // Group items by collection. Un-filed items (no collection) are not
+      // attributed to any collection's breakdown.
       const itemsByCollection = new Map<string, LocalItem[]>();
       for (const item of allLocalItems) {
+        if (!item.collection_id) continue;
         const arr = itemsByCollection.get(item.collection_id) ?? [];
         arr.push(item);
         itemsByCollection.set(item.collection_id, arr);

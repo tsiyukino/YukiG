@@ -5,6 +5,7 @@ import { Tag } from "@/types/tag";
 import { Item } from "@/types/item";
 import { tagGetItems } from "@/services/tauriCommands";
 import { strategyLabel } from "@/utils/strategyLabel";
+import { itemRoute } from "@/utils/itemNavigation";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import styles from "./TagChip.module.css";
 
@@ -58,7 +59,7 @@ export default function TagChip({ tag, onDelete, onClick }: TagChipProps) {
         <div className={styles.popover}>
           <div className={styles.popoverHeader} style={{ color: tag.color }}>Items tagged "{tag.name}"</div>
           {items.map((item) => (
-            <button key={item.id} className={styles.itemRow} onClick={() => navigate(`/collections/${item.collection_id}/items/${item.id}`)}>
+            <button key={item.id} className={styles.itemRow} onClick={() => { const { to, options } = itemRoute(item); navigate(to, options); }}>
               {item.name}
               <span className={styles.itemType}>{strategyLabel(item.strategy_type)}</span>
             </button>

@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { steamScan } from "@/services/tauriCommands";
+import { steamScan, steamSync } from "@/services/tauriCommands";
 import { SteamScanResult } from "@/types/steam";
 import { steamSyncIntervalMs } from "@/hooks/useAppPrefs";
 
@@ -59,6 +59,10 @@ export async function steamStoreScan(): Promise<void> {
     try {
       const result = await steamScan();
       setState({ result, loading: false, lastScanAt: Date.now() });
+      // Persist the library into the DB so Steam games become tracked items
+      // (home, tray, recent list, Play page). Non-fatal: a sync failure must
+      // not break the in-memory browse view above.
+      steamSync().catch((e) => console.error("steam_sync failed:", e));
     } catch (e) {
       setState({ loading: false, error: String(e) });
     } finally {

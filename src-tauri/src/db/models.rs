@@ -22,7 +22,9 @@ pub struct Collection {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {
     pub id: String,
-    pub collection_id: String,
+    /// UUID of the collection this item is filed under, or None for a library
+    /// item that belongs to no user collection (e.g. an un-filed Steam game).
+    pub collection_id: Option<String>,
     /// UUID of the parent virtual_folder or virtual_group item, or None for root items.
     pub parent_id: Option<String>,
     pub name: String,

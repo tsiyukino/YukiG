@@ -6,7 +6,9 @@
 /** A folder (or file) added to a collection. */
 export interface Item {
   id: string;
-  collection_id: string;
+  /** Collection this item is filed under. Null for a library item that belongs
+   * to no user collection (e.g. an un-filed Steam game). */
+  collection_id: string | null;
   /** UUID of the parent virtual_folder or virtual_group item. Null for root items. */
   parent_id: string | null;
   name: string;

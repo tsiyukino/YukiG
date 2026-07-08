@@ -174,7 +174,6 @@ fn reconcile(app: &AppHandle, prev: Option<u32>, current: Option<u32>) {
     // Publish the raw running app id (0 = none) for the Steam page, which keys
     // by app id rather than library item.
     let app_id = current.unwrap_or(0);
-    eprintln!("[steam_running] RunningAppID {prev:?} -> {current:?} (emitting {app_id})");
     app.state::<SteamRunningState>().set(app_id);
     let _ = app.emit(EVENT_RUNNING_CHANGED, app_id);
 

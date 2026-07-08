@@ -26,7 +26,9 @@ pub struct FavoriteItem {
 /// Input for creating a new item.
 #[derive(Debug)]
 pub struct NewItem {
-    pub collection_id: String,
+    /// Collection to file the item under, or None for a library item that
+    /// belongs to no collection (e.g. an un-filed Steam game).
+    pub collection_id: Option<String>,
     /// UUID of the parent virtual_folder or virtual_group item, or None for root.
     pub parent_id: Option<String>,
     pub name: String,

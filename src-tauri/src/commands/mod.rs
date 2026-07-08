@@ -11,4 +11,5 @@ pub mod steam_commands;
 pub mod strategy_commands;
 pub mod tag_commands;
 pub mod thumbnail_commands;
+pub mod tray_commands;
 pub mod watcher_commands;

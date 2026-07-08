@@ -1,0 +1,72 @@
+.menu {
+  position: fixed;
+  /* Above the modal overlay (1000) so menus work inside modals too. */
+  z-index: 1100;
+  min-width: 180px;
+  padding: var(--space-1);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: menu-in var(--duration-fast) var(--ease-out);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-family: inherit;
+  font-size: var(--text-md);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.item:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+}
+
+.item:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.danger .icon {
+  color: var(--color-danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--color-danger-light);
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) var(--space-2);
+  background: var(--color-border);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

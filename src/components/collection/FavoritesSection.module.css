@@ -1,0 +1,64 @@
+/* Amber-tinted pinned section — the warm hue is the favorites signature */
+.section {
+  border: 1px solid color-mix(in srgb, var(--color-accent-warm) 27%, transparent);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-accent-warm) 6%, var(--color-bg));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent-warm) 20%, transparent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: #b45309;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+
+[data-theme="dark"] .header {
+  color: var(--color-accent-warm);
+}
+
+.header:hover {
+  background: color-mix(in srgb, var(--color-accent-warm) 10%, var(--color-bg));
+}
+
+.count {
+  font-weight: var(--weight-normal);
+  opacity: 0.75;
+  margin-left: 4px;
+  font-size: var(--text-sm);
+}
+
+.chevron {
+  margin-left: auto;
+}
+
+.body {
+  padding: var(--space-3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--space-3);
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}

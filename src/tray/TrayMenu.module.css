@@ -1,0 +1,147 @@
+.frame {
+  /* Transparent room around the panel so its CSS shadow can paint —
+     the window itself is transparent and the system shadow is disabled. */
+  box-sizing: border-box;
+  width: 288px;
+  padding: 12px;
+}
+
+.panel {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
+  transform-origin: 50% 100%;
+  animation: menu-in var(--duration-fast) var(--ease-out);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-family: inherit;
+  font-size: var(--text-md);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.row:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.row:active {
+  transform: scale(0.98);
+}
+
+.rowIcon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.gameIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-xs);
+  object-fit: cover;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Running game: green-tinted row + accent bar + green name + pulsing dot
+   (Steam-style — the name itself turns green, matching Steam's friends list). */
+.rowPlaying {
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--color-success);
+}
+
+.rowPlaying .name {
+  color: var(--color-success);
+  font-weight: var(--weight-semibold);
+}
+
+.rowPlaying:hover {
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+}
+
+.playingDot {
+  flex: none;
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: tray-playing-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes tray-playing-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playingDot {
+    animation: none;
+  }
+}
+
+.quit:hover {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.quit:hover .rowIcon {
+  color: var(--color-danger);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) var(--space-2);
+  background: var(--color-border);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}

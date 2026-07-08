@@ -8,6 +8,7 @@ import PlaytimeRow from "@/components/status/PlaytimeRow";
 import GameChip from "@/components/status/GameChip";
 import InstalledDonut from "@/components/status/InstalledDonut";
 import PlaytimeHistogram, { BucketEntry } from "@/components/status/PlaytimeHistogram";
+import s from "./status.module.css";
 
 /** Playtime histogram bucket definition. */
 interface Bucket {
@@ -103,21 +104,21 @@ export default function SteamTab({ steam }: SteamTabProps) {
 
   if (steam.loading && games.length === 0) {
     return (
-      <div className="stp-scan-wait">
-        <div className="stp-scan-pulse" />
-        <p className="stp-scan-text">Scanning Steam library…</p>
-        <p className="stp-scan-sub">Reading appinfo.vdf and localconfig.vdf</p>
+      <div className={s.scanWait}>
+        <div className={s.scanPulse} />
+        <p className={s.scanText}>Scanning Steam library…</p>
+        <p className={s.scanSub}>Reading appinfo.vdf and localconfig.vdf</p>
       </div>
     );
   }
 
   if (steam.error) {
-    return <div className="stp-error">Steam scan failed: {steam.error}</div>;
+    return <div className={s.error}>Steam scan failed: {steam.error}</div>;
   }
 
   return (
-    <div className="stp-tab-body">
-      <div className="stp-grid-4">
+    <div className={s.tabBody}>
+      <div className={s.grid4}>
         <StatTile icon={<SteamIcon size={15} />} label="Total Games"
           value={games.length} accent="#1b9ae4" delay={0} />
         <StatTile icon={<CheckCircle2 size={15} />} label="Installed"
@@ -131,31 +132,31 @@ export default function SteamTab({ steam }: SteamTabProps) {
       </div>
 
       {/* Histogram */}
-      <div className="stp-card">
-        <div className="stp-card-header">
+      <div className={s.card}>
+        <div className={s.cardHeader}>
           <BarChart2 size={13} /><span>Playtime Distribution</span>
-          {steam.loading && <span className="stp-badge-scan">updating…</span>}
-          <span className="stp-card-meta">click bar to see games</span>
+          {steam.loading && <span className={s.badgeScan}>updating…</span>}
+          <span className={s.cardMeta}>click bar to see games</span>
         </div>
         <PlaytimeHistogram buckets={steamHistBuckets} />
       </div>
 
       {/* Mid row */}
-      <div className="stp-steam-mid">
-        <div className="stp-card stp-card--center">
-          <div className="stp-card-header"><Circle size={13} /><span>Installed Ratio</span></div>
+      <div className={s.steamMid}>
+        <div className={s.card}>
+          <div className={s.cardHeader}><Circle size={13} /><span>Installed Ratio</span></div>
           <InstalledDonut installed={installed.length} total={games.length} />
         </div>
 
-        <div className="stp-card">
-          <div className="stp-card-header">
+        <div className={s.card}>
+          <div className={s.cardHeader}>
             <Calendar size={13} /><span>Recently Played</span>
-            {steam.loading && <span className="stp-badge-scan">updating…</span>}
+            {steam.loading && <span className={s.badgeScan}>updating…</span>}
           </div>
           {recentlyPlayed.length === 0
-            ? <p className="stp-empty-inline">No play history found.</p>
+            ? <p className={s.emptyInline}>No play history found.</p>
             : (
-              <div className="stp-chip-list">
+              <div className={s.chipList}>
                 {recentlyPlayed.map((g) => (
                   <GameChip
                     key={g.app_id}
@@ -172,12 +173,12 @@ export default function SteamTab({ steam }: SteamTabProps) {
 
       {/* Top played */}
       {topPlayed.length > 0 && (
-        <div className="stp-card">
-          <div className="stp-card-header">
+        <div className={s.card}>
+          <div className={s.cardHeader}>
             <TrendingUp size={13} /><span>Top Played</span>
-            <span className="stp-card-meta">{topPlayed.length} games</span>
+            <span className={s.cardMeta}>{topPlayed.length} games</span>
           </div>
-          <div className="stp-pt-list">
+          <div className={s.ptList}>
             {topPlayed.map((g, i) => (
               <PlaytimeRow
                 key={g.app_id}
@@ -194,20 +195,20 @@ export default function SteamTab({ steam }: SteamTabProps) {
 
       {/* Steam info */}
       {steam.result && (
-        <div className="stp-card stp-card--muted">
-          <div className="stp-card-header"><SteamIcon size={13} /><span>Steam Info</span></div>
-          <div className="stp-meta-list">
-            <div className="stp-meta-row">
-              <span className="stp-meta-key">Path</span>
-              <span className="stp-meta-val stp-meta-val--mono">{steam.result.steam_path}</span>
+        <div className={`${s.card} ${s.cardMuted}`}>
+          <div className={s.cardHeader}><SteamIcon size={13} /><span>Steam Info</span></div>
+          <div className={s.metaList}>
+            <div className={s.metaRow}>
+              <span className={s.metaKey}>Path</span>
+              <span className={`${s.metaVal} ${s.metaValMono}`}>{steam.result.steam_path}</span>
             </div>
-            <div className="stp-meta-row">
-              <span className="stp-meta-key">Accounts</span>
-              <span className="stp-meta-val">{steam.result.users.length}</span>
+            <div className={s.metaRow}>
+              <span className={s.metaKey}>Accounts</span>
+              <span className={s.metaVal}>{steam.result.users.length}</span>
             </div>
-            <div className="stp-meta-row">
-              <span className="stp-meta-key">Collections</span>
-              <span className="stp-meta-val">{steam.result.collection_names.length}</span>
+            <div className={s.metaRow}>
+              <span className={s.metaKey}>Collections</span>
+              <span className={s.metaVal}>{steam.result.collection_names.length}</span>
             </div>
           </div>
         </div>

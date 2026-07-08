@@ -15,6 +15,8 @@ import { Tag } from "@/types/tag";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { strategyLabel } from "@/utils/strategyLabel";
+import PageTitle from "@/components/common/PageTitle";
+import styles from "./SearchPage.module.css";
 
 type FilterMode = "all" | "collections" | "items" | "tags";
 
@@ -102,23 +104,21 @@ export default function SearchPage() {
     : "Search";
 
   return (
-    <div className="sp2">
-      <div className="sp2-header">
-        <h1 className="sp2-title">{pageTitle}</h1>
-        <p className="sp2-subtitle">
-          {tagFilter
-            ? `${items.length} item${items.length !== 1 ? "s" : ""} with this tag`
-            : "Search across all collections, items, and tags."}
-        </p>
-      </div>
+    <div className={styles.page}>
+      <PageTitle
+        title={pageTitle}
+        subtitle={tagFilter
+          ? `${items.length} item${items.length !== 1 ? "s" : ""} with this tag`
+          : "Search across all collections, items, and tags."}
+      />
 
       {/* Tag filter banner */}
       {tagFilter && (
-        <div className="sp2-tag-banner">
+        <div className={styles.tagBanner}>
           <TagIcon size={13} />
           <span>Showing all items tagged</span>
           <span
-            className="sp2-tag-pill"
+            className={styles.tagPill}
             style={{
               background: `${tagFilter.color}22`,
               color: tagFilter.color,
@@ -126,7 +126,7 @@ export default function SearchPage() {
           >
             {tagFilter.name}
           </span>
-          <button className="sp2-tag-clear" onClick={handleClearTagFilter} title="Clear tag filter">
+          <button className={styles.tagClear} onClick={handleClearTagFilter} title="Clear tag filter">
             <X size={12} />
           </button>
         </div>
@@ -134,10 +134,10 @@ export default function SearchPage() {
 
       {/* Search input — hidden when browsing by tag */}
       {!tagFilter && (
-        <div className="sp2-input-wrap">
+        <div className={styles.inputWrap}>
           <Search size={15} color="var(--color-text-muted)" />
           <input
-            className="sp2-input"
+            className={styles.input}
             type="text"
             placeholder="Type to search everything…"
             value={query}
@@ -145,7 +145,7 @@ export default function SearchPage() {
             autoFocus
           />
           {query && (
-            <button className="sp2-clear" onClick={() => handleQueryChange("")}>
+            <button className={styles.clear} onClick={() => handleQueryChange("")}>
               <X size={13} />
             </button>
           )}
@@ -154,22 +154,22 @@ export default function SearchPage() {
 
       {/* Filter tabs — only show for text search */}
       {!tagFilter && (
-        <div className="sp2-filters">
+        <div className={styles.filters}>
           {(["all", "collections", "items", "tags"] as FilterMode[]).map((mode) => (
             <button
               key={mode}
-              className={`sp2-filter-btn ${filter === mode ? "sp2-filter-btn--active" : ""}`}
+              className={filter === mode ? `${styles.filterBtn} ${styles.filterActive}` : styles.filterBtn}
               onClick={() => setFilter(mode)}
             >
               {mode.charAt(0).toUpperCase() + mode.slice(1)}
               {mode === "collections" && searched && collections.length > 0 && (
-                <span className="sp2-filter-count">{collections.length}</span>
+                <span className={styles.filterCount}>{collections.length}</span>
               )}
               {mode === "items" && searched && items.length > 0 && (
-                <span className="sp2-filter-count">{items.length}</span>
+                <span className={styles.filterCount}>{items.length}</span>
               )}
               {mode === "tags" && searched && tags.length > 0 && (
-                <span className="sp2-filter-count">{tags.length}</span>
+                <span className={styles.filterCount}>{tags.length}</span>
               )}
             </button>
           ))}
@@ -177,13 +177,13 @@ export default function SearchPage() {
       )}
 
       {/* Results */}
-      <div className="sp2-results">
+      <div className={styles.results}>
         {loading ? (
           <LoadingSpinner message={tagFilter ? "Loading items…" : "Searching…"} />
         ) : tagFilter ? (
           // Tag browse mode
           items.length === 0 ? (
-            <div className="sp2-empty">
+            <div className={styles.empty}>
               <p>No items are tagged with "<strong>{tagFilter.name}</strong>".</p>
             </div>
           ) : (
@@ -198,16 +198,16 @@ export default function SearchPage() {
             </ResultSection>
           )
         ) : !searched ? (
-          <div className="sp2-empty">
+          <div className={styles.empty}>
             <Search size={32} color="var(--color-text-muted)" strokeWidth={1.5} />
             <p>Enter a search term to find collections, items, and tags.</p>
-            <p className="sp2-hint">
+            <p className={styles.hint}>
               In the header search bar, use <code>a&gt;</code> to search all types,{" "}
               <code>t&gt;</code> for tags only, or <code>a,t&gt;</code> for tags globally.
             </p>
           </div>
         ) : totalResults === 0 ? (
-          <div className="sp2-empty">
+          <div className={styles.empty}>
             <p>No results for "<strong>{query}</strong>".</p>
           </div>
         ) : (
@@ -236,11 +236,11 @@ export default function SearchPage() {
             )}
             {(filter === "all" || filter === "tags") && tags.length > 0 && (
               <ResultSection title="Tags" icon={<TagIcon size={13} />}>
-                <div className="sp2-tag-results">
+                <div className={styles.tagResults}>
                   {tags.map((tag) => (
                     <button
                       key={tag.id}
-                      className="sp2-tag-result"
+                      className={styles.tagResult}
                       style={{ background: `${tag.color}22`, color: tag.color }}
                       onClick={() => {
                         setTagFilter(tag);
@@ -259,178 +259,25 @@ export default function SearchPage() {
         )}
       </div>
 
-      <style>{`
-        .sp2 { width: 100%; display: flex; flex-direction: column; gap: var(--space-5); }
-        .sp2-header {
-          position: sticky;
-          top: calc(-1 * var(--space-4));
-          z-index: 10;
-          background: var(--color-bg);
-          padding-top: var(--space-4);
-          padding-bottom: var(--space-5);
-          border-bottom: 1px solid var(--color-border-subtle);
-          margin-bottom: calc(-1 * var(--space-5));
-        }
-        .sp2-title { font-size: 22px; font-weight: 700; letter-spacing: -0.025em; }
-        .sp2-subtitle { font-size: 12.5px; color: var(--color-text-muted); margin-top: 2px; }
-
-        .sp2-tag-banner {
-          display: flex; align-items: center; gap: var(--space-2);
-          padding: var(--space-3) var(--space-4);
-          background: var(--color-bg-secondary);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          font-size: 13px; color: var(--color-text-secondary);
-        }
-        .sp2-tag-pill {
-          padding: 2px 10px; border-radius: var(--radius-full);
-          font-size: 12px; font-weight: 600;
-        }
-        .sp2-tag-clear {
-          margin-left: auto; display: flex; align-items: center;
-          color: var(--color-text-muted);
-          transition: color var(--transition-fast);
-        }
-        .sp2-tag-clear:hover { color: var(--color-danger); }
-
-        .sp2-input-wrap {
-          display: flex; align-items: center; gap: var(--space-3);
-          border: 1.5px solid var(--color-border);
-          border-radius: var(--radius-md);
-          padding: var(--space-3) var(--space-4);
-          background: var(--color-bg-secondary);
-          transition: border-color var(--transition-fast);
-        }
-        .sp2-input-wrap:focus-within { border-color: var(--color-accent); }
-        .sp2-input {
-          flex: 1; background: none; border: none; outline: none;
-          font-size: 14px; color: var(--color-text-primary);
-        }
-        .sp2-input::placeholder { color: var(--color-text-muted); }
-        .sp2-clear {
-          display: flex; align-items: center; color: var(--color-text-muted);
-          transition: color var(--transition-fast);
-        }
-        .sp2-clear:hover { color: var(--color-text-primary); }
-
-        .sp2-filters {
-          display: flex; gap: 0;
-          border-bottom: 1px solid var(--color-border);
-        }
-        .sp2-filter-btn {
-          display: flex; align-items: center; gap: 6px;
-          padding: 7px 16px;
-          font-size: 13px; font-weight: 500;
-          color: var(--color-text-muted);
-          border-bottom: 2px solid transparent;
-          margin-bottom: -1px;
-          transition: color var(--transition-fast), border-color var(--transition-fast);
-        }
-        .sp2-filter-btn:hover { color: var(--color-text-primary); }
-        .sp2-filter-btn--active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
-        .sp2-filter-count {
-          display: inline-flex; align-items: center; justify-content: center;
-          min-width: 18px; height: 18px; padding: 0 5px;
-          background: var(--color-bg-tertiary);
-          border-radius: var(--radius-full);
-          font-size: 10.5px; font-weight: 600;
-          color: var(--color-text-muted);
-        }
-        .sp2-filter-btn--active .sp2-filter-count {
-          background: var(--color-accent-light);
-          color: var(--color-accent);
-        }
-
-        .sp2-results { display: flex; flex-direction: column; gap: var(--space-5); }
-        .sp2-empty {
-          display: flex; flex-direction: column; align-items: center;
-          gap: var(--space-3); padding: 60px var(--space-8);
-          text-align: center; color: var(--color-text-muted); font-size: 13.5px;
-        }
-        .sp2-hint {
-          font-size: 12px; max-width: 400px;
-          background: var(--color-bg-secondary);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          padding: var(--space-3) var(--space-4);
-          line-height: 1.7;
-        }
-        .sp2-hint code {
-          font-family: var(--font-mono); font-size: 11px;
-          background: var(--color-bg-tertiary);
-          padding: 1px 4px; border-radius: 3px;
-        }
-
-        .sp2-section { display: flex; flex-direction: column; gap: var(--space-2); }
-        .sp2-section-heading {
-          display: flex; align-items: center; gap: var(--space-2);
-          font-size: 11px; font-weight: 600; text-transform: uppercase;
-          letter-spacing: 0.06em; color: var(--color-text-muted);
-          padding-bottom: var(--space-1);
-          border-bottom: 1px solid var(--color-border-subtle);
-        }
-        .sp2-section-rows { display: flex; flex-direction: column; }
-        .sp2-tag-results { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-1); }
-        .sp2-tag-result {
-          padding: 4px 12px; border-radius: var(--radius-full);
-          font-size: 12.5px; font-weight: 500; cursor: pointer;
-          transition: opacity var(--transition-fast);
-        }
-        .sp2-tag-result:hover { opacity: 0.8; }
-
-        .sp2-row {
-          display: flex; align-items: center; gap: var(--space-3);
-          padding: var(--space-3) var(--space-2);
-          border-bottom: 1px solid var(--color-border-subtle);
-          text-align: left; width: 100%;
-          transition: background var(--transition-fast);
-          border-radius: var(--radius-sm);
-        }
-        .sp2-row:last-child { border-bottom: none; }
-        .sp2-row:hover { background: var(--color-bg-secondary); }
-        .sp2-row-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-        .sp2-row-name { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); flex-shrink: 0; }
-        .sp2-row-desc { font-size: 12px; color: var(--color-text-muted); flex: 1; min-width: 0;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        .sp2-item-row {
-          display: flex; align-items: center; gap: var(--space-3);
-          padding: var(--space-2) var(--space-2);
-          border-bottom: 1px solid var(--color-border-subtle);
-          text-align: left; width: 100%;
-          transition: background var(--transition-fast);
-          border-radius: var(--radius-sm);
-        }
-        .sp2-item-row:last-child { border-bottom: none; }
-        .sp2-item-row:hover { background: var(--color-bg-secondary); }
-        .sp2-item-icon {
-          width: 26px; height: 26px; border-radius: var(--radius-sm);
-          background: var(--color-bg-secondary); border: 1px solid var(--color-border);
-          display: flex; align-items: center; justify-content: center;
-          overflow: hidden; flex-shrink: 0;
-        }
-        .sp2-item-thumb { width: 26px; height: 26px; object-fit: cover; display: block; }
-        .sp2-item-type { font-size: 11px; color: var(--color-text-muted); text-transform: capitalize; flex-shrink: 0; margin-left: auto; }
-      `}</style>
     </div>
   );
 }
 
 function ResultSection({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="sp2-section">
-      <div className="sp2-section-heading">{icon}{title}</div>
-      <div className="sp2-section-rows">{children}</div>
+    <div className={styles.section}>
+      <div className={styles.sectionHeading}>{icon}{title}</div>
+      <div className={styles.sectionRows}>{children}</div>
     </div>
   );
 }
 
 function CollectionResult({ collection, onClick }: { collection: Collection; onClick: () => void }) {
   return (
-    <button className="sp2-row" onClick={onClick}>
-      <span className="sp2-row-dot" style={{ background: collection.color }} />
-      <span className="sp2-row-name">{collection.name}</span>
-      {collection.description && <span className="sp2-row-desc">{collection.description}</span>}
+    <button className={styles.row} onClick={onClick}>
+      <span className={styles.rowDot} style={{ background: collection.color }} />
+      <span className={styles.rowName}>{collection.name}</span>
+      {collection.description && <span className={styles.rowDesc}>{collection.description}</span>}
     </button>
   );
 }
@@ -438,14 +285,14 @@ function CollectionResult({ collection, onClick }: { collection: Collection; onC
 function ItemResult({ item, onClick }: { item: Item; onClick: () => void }) {
   const thumbSrc = item.thumbnail_path ? convertFileSrc(item.thumbnail_path) : null;
   return (
-    <button className="sp2-item-row" onClick={onClick}>
-      <div className="sp2-item-icon">
+    <button className={styles.itemRow} onClick={onClick}>
+      <div className={styles.itemIcon}>
         {thumbSrc
-          ? <img src={thumbSrc} alt="" className="sp2-item-thumb" />
+          ? <img src={thumbSrc} alt="" className={styles.itemThumb} />
           : <FolderOpen size={13} color="var(--color-text-muted)" />}
       </div>
-      <span className="sp2-row-name">{item.name}</span>
-      <span className="sp2-item-type">{strategyLabel(item.strategy_type)}</span>
+      <span className={styles.rowName}>{item.name}</span>
+      <span className={styles.itemType}>{strategyLabel(item.strategy_type)}</span>
     </button>
   );
 }

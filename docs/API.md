@@ -121,12 +121,12 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Errors**: Unknown strategy type; DB failure
 - **Owner**: `commands/strategy_commands.rs`
 
-### `strategy_execute_launch`
-- **Parameters**: `item_id: string`, `folder_path: string`, `strategy_type: string`
-- **Returns**: `void`
-- **Errors**: Unknown strategy; no launch action; process spawn failure
-- **Owner**: `commands/strategy_commands.rs`
-- **Note**: For `run_exe`, spawns the exe via `std::process::Command` (detached). For `open_with_default`, uses `tauri-plugin-opener`. Runs on the Rust backend to avoid shell plugin allowlist requirements.
+### `strategy_execute_launch_tracked`
+- **Parameters**: `item_id: string`
+- **Returns**: `number` — session length in whole seconds (0 for `open_with_default` actions)
+- **Errors**: Unknown item or strategy; no launch action; process spawn failure; process snapshot failure
+- **Owner**: `commands/strategy_commands.rs` (thin wrapper over `services/launcher.rs`)
+- **Note**: Folder path and strategy type are resolved from the database — the frontend passes only the item id. For `run_exe`, spawns the exe as a plain detached process (working directory = exe's folder) and measures the session via `services/process_tracker.rs`, which polls the process table once per second and follows parent-PID links until the whole tree has exited. The game is **never placed in a Job Object** and inherits nothing from YukiG, so hook-based launchers (Mod Organizer 2 / usvfs) behave exactly as if double-clicked. On completion, persists `total_playtime_seconds` (authoritative), `total_playtime_minutes` (derived), and `last_launched` (Unix seconds) to `strategy_metadata`. This is the only launch command — the untracked `strategy_execute_launch` was removed when all launch paths switched to tracked launches.
 
 ### `strategy_get_metadata_schema`
 - **Parameters**: `strategy_type: string`
@@ -204,6 +204,18 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Returns**: `PlaySession[]` — `{ id, item_id, started_at, ended_at }[]`, newest first
 - **Owner**: `commands/play_session_commands.rs`
 
+### `session_get_active`
+- **Parameters**: none
+- **Returns**: `ActiveSession[]` — `{ item_id, started_at }[]` (started_at is Unix seconds)
+- **Owner**: `commands/play_session_commands.rs`
+- **Note**: Reads the in-memory `SessionRegistry` (source of truth for live "now playing" state), not the `play_sessions` table. Covers local games launched via YukiG **and** Steam games detected through Steam's registry. Called by the frontend on window (re)creation to rebuild "now playing" badges, since the tray flow destroys the webview and its React state. Complements the `play-session-started` / `play-session-ended` Tauri events, which push live changes; see `docs/ARCHITECTURE.md`.
+
+### `steam_get_running_appid`
+- **Parameters**: none
+- **Returns**: `number` — the Steam app id currently running, or 0 if none
+- **Owner**: `commands/steam_commands.rs`
+- **Note**: Reads the `steam_running` watcher's state (mirrors Steam's `RunningAppID`). Keyed by app id — independent of library import — so the Steam page can mark a running game whether launched from Steam or YukiG. Live updates arrive via the `steam-running-changed` event (payload: the app id, 0 = none).
+
 ## Game Status
 
 ### `game_status_get`
@@ -232,3 +244,42 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Returns**: `number` — count of rows inserted
 - **Note**: Inserts default rows for all `game` and `steam_game` items without an existing row. Safe to call on every startup.
 - **Owner**: `commands/game_status_commands.rs`
+
+## Tray Menu
+
+All tray commands are invoked only from the tray-menu popup window (label `tray-menu`, the `?window=tray` entry). See `docs/ARCHITECTURE.md` § Key Architectural Decisions #3 for the popup lifecycle.
+
+### `tray_get_recent_games`
+- **Parameters**: none
+- **Returns**: `RecentGame[]` — `{ id, name, strategy_type, thumbnail_path, icon_url }`, up to 5, most recently played first (newer of `last_launched` / `steam_last_played`)
+- **Errors**: DB failure
+- **Owner**: `commands/tray_commands.rs` (query in `db/queries/recent_queries.rs`)
+
+### `tray_launch_item`
+- **Parameters**: `item_id: string`
+- **Returns**: `void` — resolves immediately (fire-and-forget)
+- **Note**: Spawns `services/launcher.rs::launch_tracked` on the async runtime; playtime tracking continues after the popup hides. Launch failures are logged, not surfaced.
+- **Owner**: `commands/tray_commands.rs`
+
+### `tray_menu_present`
+- **Parameters**: `width: number`, `height: number` — the frontend's measured content size in logical pixels
+- **Returns**: `void`
+- **Errors**: Menu window missing; window operation failure
+- **Note**: Anchors the popup's bottom-right corner at the recorded tray-click point, clamps to the monitor under the cursor, then shows and focuses it.
+- **Owner**: `commands/tray_commands.rs`
+
+### `tray_menu_hide`
+- **Parameters**: none
+- **Returns**: `void`
+- **Errors**: Menu window missing; hide failure
+- **Owner**: `commands/tray_commands.rs`
+
+### `tray_open_main`
+- **Parameters**: none
+- **Returns**: `void` — shows or recreates the main window
+- **Owner**: `commands/tray_commands.rs`
+
+### `tray_quit`
+- **Parameters**: none
+- **Returns**: never — exits the process
+- **Owner**: `commands/tray_commands.rs`

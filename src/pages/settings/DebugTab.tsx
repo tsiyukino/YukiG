@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Bug, RefreshCw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { SettingsSection, SettingsRow } from "./SettingsControls";
+import s from "./settings.module.css";
 
 /** Debug tab panel — developer diagnostic tools. */
 export default function DebugTab() {
@@ -32,8 +33,8 @@ export default function DebugTab() {
         label="Steam categories"
         description="Check if category IDs are parsed from appinfo.vdf."
       >
-        <button className="sp-btn" disabled={loading} onClick={() => run("steam_debug_appinfo")}>
-          {loading ? <RefreshCw size={11} className="sp-spin" /> : null}
+        <button className={s.btn} disabled={loading} onClick={() => run("steam_debug_appinfo")}>
+          {loading ? <RefreshCw size={11} className={s.spin} /> : null}
           Run
         </button>
       </SettingsRow>
@@ -41,14 +42,14 @@ export default function DebugTab() {
         label="DB state"
         description="Check tags and game status rows in the database."
       >
-        <button className="sp-btn" disabled={loading} onClick={() => run("steam_debug_db")}>
-          {loading ? <RefreshCw size={11} className="sp-spin" /> : null}
+        <button className={s.btn} disabled={loading} onClick={() => run("steam_debug_db")}>
+          {loading ? <RefreshCw size={11} className={s.spin} /> : null}
           Run
         </button>
       </SettingsRow>
       {output && (
         <div style={{ gridColumn: "1/-1", padding: "var(--space-3) var(--space-4)" }}>
-          <pre className="sp-debug-out">{output}</pre>
+          <pre className={s.debugOut}>{output}</pre>
         </div>
       )}
     </SettingsSection>

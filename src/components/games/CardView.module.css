@@ -1,0 +1,77 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-base);
+}
+
+.dragWrapper {
+  display: contents;
+}
+
+.dragItem {
+  border-radius: var(--radius-md);
+  cursor: grab;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.dragging {
+  opacity: 0.35;
+}
+
+.dropSlot {
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--color-accent);
+  background: var(--color-accent-light);
+  min-height: 160px;
+  animation: slot-appear var(--duration-fast) var(--ease-out);
+}
+
+@keyframes slot-appear {
+  from {
+    opacity: 0;
+    transform: scaleY(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+/* The dashed "new collection" card overrides the Card base look */
+.newCard {
+  min-height: 160px;
+  border-style: dashed !important;
+  border-color: var(--color-border) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.newInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 160px;
+}
+
+.newIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.newLabel {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}

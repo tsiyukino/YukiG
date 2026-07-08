@@ -61,6 +61,16 @@ export async function steamGetImportedIds(): Promise<number[]> {
 }
 
 /**
+ * Returns the Steam app id currently running (0 if none).
+ * Seeds "now playing" state on the Steam page; live updates arrive via the
+ * `steam-running-changed` event.
+ * @throws {string} If the query fails
+ */
+export async function steamGetRunningAppId(): Promise<number> {
+  return invoke("steam_get_running_appid");
+}
+
+/**
  * Returns all Steam accounts parsed from loginusers.vdf.
  * Most-recently-used account is listed first.
  * @throws {string} If Steam is not found or loginusers.vdf cannot be read

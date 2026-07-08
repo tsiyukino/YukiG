@@ -11,6 +11,7 @@ import {
   BehaviourSettings,
 } from "@/services/tauriCommands";
 import { SettingsSection, SettingsRow, Toggle } from "./SettingsControls";
+import s from "./settings.module.css";
 
 /** Behaviour tab panel — startup and window settings. */
 export default function BehaviourTab() {
@@ -73,7 +74,7 @@ export default function BehaviourTab() {
             onChange={() => handleToggle("minimize_to_tray")}
           />
         </SettingsRow>
-        {error && <span className="sp-error sp-error--section">{error}</span>}
+        {error && <span className={s.errorSection}>{error}</span>}
       </SettingsSection>
     </>
   );

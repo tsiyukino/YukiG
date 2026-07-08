@@ -1,13 +1,8 @@
 import { Clock, ChevronRight } from "lucide-react";
 import { Collection } from "@/types/collection";
+import s from "./status.module.css";
+import { formatHoursMinutes } from "@/utils/formatPlaytime";
 
-function fmtMinutes(mins: number): string {
-  if (mins === 0) return "0h";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h === 0) return `${m}m`;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
 
 interface LocalItem {
   playtime_minutes: number;
@@ -30,19 +25,19 @@ export default function CollectionRow({ collection, items, maxCount, onClick }: 
   const pct = maxCount > 0 ? (items.length / maxCount) * 100 : 0;
 
   return (
-    <button className="stp-coll-row" onClick={onClick}>
-      <span className="stp-coll-dot" style={{ background: collection.color }} />
-      <div className="stp-coll-info">
-        <span className="stp-coll-name">{collection.name}</span>
+    <button className={s.collRow} onClick={onClick}>
+      <span className={s.collDot} style={{ background: collection.color }} />
+      <div className={s.collInfo}>
+        <span className={s.collName}>{collection.name}</span>
         {totalPlaytime > 0 && (
-          <span className="stp-coll-playtime"><Clock size={9} /> {fmtMinutes(totalPlaytime)}</span>
+          <span className={s.collPlaytime}><Clock size={9} /> {formatHoursMinutes(totalPlaytime)}</span>
         )}
       </div>
-      <div className="stp-coll-track">
-        <div className="stp-coll-fill" style={{ width: `${pct}%`, background: `${collection.color}80` }} />
+      <div className={s.collTrack}>
+        <div className={s.collFill} style={{ width: `${pct}%`, background: `${collection.color}80` }} />
       </div>
-      <span className="stp-coll-count">{items.length}</span>
-      <ChevronRight size={12} className="stp-coll-arrow" />
+      <span className={s.collCount}>{items.length}</span>
+      <ChevronRight size={12} className={s.collArrow} />
     </button>
   );
 }

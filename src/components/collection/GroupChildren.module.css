@@ -1,0 +1,74 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--space-3);
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.dragWrapper {
+  display: contents;
+}
+
+.dragItem {
+  cursor: grab;
+  border-radius: var(--radius-md);
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.dragging {
+  opacity: 0.35;
+}
+
+.dropSlot {
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--color-accent);
+  background: var(--color-accent-light);
+  min-height: 72px;
+  animation: slot-appear var(--duration-fast) var(--ease-out);
+}
+
+@keyframes slot-appear {
+  from {
+    opacity: 0;
+    transform: scaleY(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.rootDrop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast);
+  animation: slot-appear var(--duration-fast) var(--ease-out);
+}
+
+.rootDropActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}

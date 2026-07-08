@@ -1,0 +1,177 @@
+/* Design tokens for YukiG.
+ *
+ * Three layers: primitive ramps → semantic tokens → components.
+ * Components consume semantic tokens only. Primitives exist so new
+ * semantic roles can be added without inventing new hex values.
+ *
+ * Dark mode overrides semantic tokens only — primitives are absolute.
+ */
+
+:root {
+  /* ── Primitives: neutral ramp (hue 240, low saturation) ─────────── */
+  --gray-50: #fafafc;
+  --gray-100: #f4f4f8;
+  --gray-200: #e9e9f0;
+  --gray-300: #d8d8e2;
+  --gray-400: #b3b3c2;
+  --gray-500: #72728a; /* 4.7:1 on white — floor for readable text */
+  --gray-600: #51516b;
+  --gray-700: #3c3c52;
+  --gray-800: #292940;
+  --gray-900: #1a1a2e;
+
+  /* ── Primitives: indigo ramp (brand accent) ─────────────────────── */
+  --indigo-50: #eef2ff;
+  --indigo-100: #e0e7ff;
+  --indigo-200: #c7d2fe;
+  --indigo-300: #a5b4fc;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;
+  --indigo-700: #4338ca;
+
+  /* ── Primitives: status hues ────────────────────────────────────── */
+  --red-50: #fef2f2;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+
+  /* ── Typography ─────────────────────────────────────────────────── */
+  --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-display: "Sora Variable", "Geist Variable", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Cascadia Code", "Fira Code", "Consolas", monospace;
+
+  /* Type scale — every font-size in the app comes from here */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 19px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --text-4xl: 36px;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  --tracking-tight: -0.02em;
+  --tracking-caps: 0.06em; /* uppercase section labels */
+
+  /* ── Semantic colors: light mode ────────────────────────────────── */
+  --color-bg: #ffffff;
+  --color-bg-primary: #ffffff; /* alias for --color-bg */
+  --color-bg-secondary: var(--gray-50);
+  --color-bg-tertiary: var(--gray-100);
+  --color-surface: var(--color-bg-secondary);
+  --color-border: var(--gray-200);
+  --color-border-subtle: var(--gray-100);
+  --color-border-strong: var(--gray-300);
+
+  --color-text-primary: var(--gray-900);
+  --color-text-secondary: var(--gray-600);
+  --color-text-muted: var(--gray-500);
+
+  --color-accent: var(--indigo-500);
+  --color-accent-hover: var(--indigo-600);
+  --color-accent-light: var(--indigo-50);
+
+  --color-danger: var(--red-500);
+  --color-danger-hover: var(--red-600);
+  --color-danger-light: var(--red-50);
+
+  --color-success: var(--green-500);
+
+  --color-accent-warm: var(--amber-500);
+  --color-accent-warm-light: rgba(245, 158, 11, 0.1);
+
+  /* ── Spacing scale ──────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Page scroll-container padding — sticky page headers offset against
+     --page-pad-top, so the two must change together */
+  --page-pad-top: var(--space-5);
+  --page-pad-x: var(--space-10);
+
+  /* ── Shape ──────────────────────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-card: 14px;
+  --radius-full: 9999px;
+
+  /* ── Elevation (shadow color tinted toward gray-900) ────────────── */
+  --shadow-xs: 0 1px 2px rgba(26, 26, 46, 0.05);
+  --shadow-sm: 0 1px 3px rgba(26, 26, 46, 0.07), 0 1px 2px rgba(26, 26, 46, 0.05);
+  --shadow-md: 0 4px 12px rgba(26, 26, 46, 0.09), 0 2px 4px rgba(26, 26, 46, 0.05);
+  --shadow-lg: 0 12px 32px rgba(26, 26, 46, 0.13), 0 4px 10px rgba(26, 26, 46, 0.06);
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --duration-fast: 140ms;
+  --duration-normal: 220ms;
+  --duration-slow: 340ms;
+
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-normal: var(--duration-normal) var(--ease-out);
+  --transition-slow: var(--duration-slow) var(--ease-in-out);
+}
+
+/* ── Semantic colors: dark mode (data-theme="dark" on <html>) ─────── */
+[data-theme="dark"] {
+  --color-bg: #0f0f13;
+  --color-bg-primary: #0f0f13;
+  --color-bg-secondary: #17171d;
+  --color-bg-tertiary: #20202a;
+  --color-surface: var(--color-bg-secondary);
+  --color-border: #2b2b38;
+  --color-border-subtle: #1c1c24;
+  --color-border-strong: #3a3a48;
+
+  --color-text-primary: #eaeaf2;
+  --color-text-secondary: #a0a0b8;
+  --color-text-muted: #7c7c96; /* 4.7:1 on --color-bg */
+
+  /* Hover darkens (not lightens): accent-hover is used as a solid button
+     background under white text, which needs the deeper step. */
+  --color-accent: var(--indigo-400);
+  --color-accent-hover: var(--indigo-500);
+  --color-accent-light: #232345;
+
+  --color-danger: var(--red-400);
+  --color-danger-hover: var(--red-500);
+  --color-danger-light: rgba(239, 68, 68, 0.15);
+
+  --color-success: var(--green-400);
+
+  --color-accent-warm: var(--amber-400);
+  --color-accent-warm-light: rgba(251, 191, 36, 0.12);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.25);
+}

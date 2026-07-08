@@ -5,6 +5,7 @@ import { Tag } from "@/types/tag";
 import ItemCard from "@/components/common/ItemCard";
 import GalleryItemCard from "@/components/common/GalleryItemCard";
 import ListItemRow from "@/components/common/ListItemRow";
+import styles from "./FavoritesSection.module.css";
 
 interface FavoritesSectionProps {
   /** All items marked is_favorite=true for this collection. */
@@ -33,21 +34,19 @@ export default function FavoritesSection({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="cp-favorites-section">
-      <div className="cp-favorites-header" onClick={() => setCollapsed((c) => !c)}>
-        <Star size={13} color="#f59e0b" fill="#f59e0b" />
+    <div className={styles.section}>
+      <div className={styles.header} onClick={() => setCollapsed((c) => !c)}>
+        <Star size={13} color="var(--color-accent-warm)" fill="var(--color-accent-warm)" />
         <span>Favorites</span>
-        <span style={{ fontWeight: 400, color: "#a16207", marginLeft: 4, fontSize: 12 }}>
-          {items.length}
-        </span>
-        <span style={{ marginLeft: "auto" }}>
+        <span className={styles.count}>{items.length}</span>
+        <span className={styles.chevron}>
           {collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
         </span>
       </div>
       {!collapsed && (
-        <div className="cp-favorites-body">
+        <div className={styles.body}>
           {viewMode === "list" ? (
-            <div className="cp-favorites-list">
+            <div className={styles.list}>
               {items.map((item) => (
                 <ListItemRow
                   key={item.id}
@@ -60,7 +59,7 @@ export default function FavoritesSection({
               ))}
             </div>
           ) : (
-            <div className={viewMode === "gallery" ? "cp-favorites-gallery" : "cp-favorites-grid"}>
+            <div className={viewMode === "gallery" ? styles.gallery : styles.grid}>
               {items.map((item) =>
                 viewMode === "gallery" ? (
                   <GalleryItemCard

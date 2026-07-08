@@ -83,13 +83,25 @@ export function steamSyncIntervalMs(): number | null {
 
 // ─── Accent color ─────────────────────────────────────────────────────────────
 
-/** Applies the stored accent color to the document CSS variables immediately. */
+/**
+ * Applies the stored accent color to the document CSS variables immediately.
+ *
+ * For the default accent this clears the overrides instead of setting them,
+ * so the token layer (tokens.css) stays in charge — it defines proper
+ * per-theme accents (lighter in dark mode) that an inline override would mask.
+ */
 export function applyAccentColor(color: string): void {
   const root = document.documentElement;
+
+  if (color.toLowerCase() === DEFAULTS.accentColor) {
+    root.style.removeProperty("--color-accent");
+    root.style.removeProperty("--color-accent-hover");
+    root.style.removeProperty("--color-accent-light");
+    return;
+  }
+
   root.style.setProperty("--color-accent", color);
-  // Derive hover (10% darker) and light (10% opacity) variants.
-  root.style.setProperty("--color-accent-hover", color);
-  // The light variant is just the accent at low opacity — use a CSS approach.
+  root.style.setProperty("--color-accent-hover", darkenHex(color, 0.12));
   root.style.setProperty("--color-accent-light", hexToAlpha(color, 0.12));
 }
 
@@ -99,6 +111,17 @@ function hexToAlpha(hex: string, alpha: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/** Darkens a hex color by the given fraction (0–1), used for hover states. */
+function darkenHex(hex: string, amount: number): string {
+  const channel = (offset: number) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16);
+    return Math.max(0, Math.round(value * (1 - amount)))
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import { formatPlaytime } from "@/utils/formatPlaytime";
 import { strategyGetMetadata } from "@/services/tauriCommands";
 import { steamImageSrc } from "@/utils/pathUtils";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import styles from "./FeaturedCard.module.css";
 
 interface Props {
   candidate: PlayCandidate;
@@ -29,6 +30,7 @@ interface GameImages {
   cover: string;   // portrait cover on the right
 }
 
+/** Display colors per story status — over-image chips, not theme colors. */
 const STATUS_META: Record<string, { label: string; color: string }> = {
   unplayed:  { label: "Unplayed",  color: "#818cf8" },
   playing:   { label: "Playing",   color: "#4ade80" },
@@ -71,35 +73,31 @@ export default function FeaturedCard({ candidate, onLaunch, onSkip, onSetStatus,
   const stMeta = STATUS_META[status.story_status] ?? { label: status.story_status, color: "#818cf8" };
 
   return (
-    <div className="fc-root">
-      {/* ── Wide background hero ── */}
-      <div className="fc-bg">
+    <div className={styles.root}>
+      <div className={styles.bg}>
         {imgs.hero
-          ? <img src={imgs.hero} alt="" aria-hidden className="fc-bg-img" />
-          : <div className="fc-bg-fallback" />
+          ? <img src={imgs.hero} alt="" aria-hidden className={styles.bgImg} />
+          : <div className={styles.bgFallback} />
         }
-        <div className="fc-bg-gradient" />
+        <div className={styles.bgGradient} />
       </div>
 
-      {/* ── Main content row ── */}
-      <div className="fc-body">
-        {/* Left: info */}
-        <div className="fc-info">
-          {/* Chips row */}
-          <div className="fc-chips">
+      <div className={styles.body}>
+        <div className={styles.info}>
+          <div className={styles.chips}>
             <span
-              className="fc-chip fc-chip--status"
+              className={styles.chip}
               style={{ background: stMeta.color + "28", color: stMeta.color, borderColor: stMeta.color + "55" }}
             >
               {stMeta.label}
             </span>
             {status.online_status === "active" && (
-              <span className="fc-chip fc-chip--online">● Online</span>
+              <span className={`${styles.chip} ${styles.chipOnline}`}>● Online</span>
             )}
             {moodTags.map((t) => (
               <span
                 key={t.id}
-                className="fc-chip"
+                className={styles.chip}
                 style={{ background: t.color + "22", color: t.color, borderColor: t.color + "44" }}
               >
                 {t.name}
@@ -107,51 +105,48 @@ export default function FeaturedCard({ candidate, onLaunch, onSkip, onSetStatus,
             ))}
           </div>
 
-          {/* Title */}
-          <h2 className="fc-title">{item.name}</h2>
+          <h2 className={styles.title}>{item.name}</h2>
 
-          {/* Playtime */}
-          <div className="fc-playtime">
+          <div className={styles.playtime}>
             <Clock size={13} />
             <span>{formatPlaytime(totalPlayMinutes)}</span>
             {lastLaunched ? (
               <>
-                <span className="fc-sep">·</span>
+                <span className={styles.sep}>·</span>
                 <span>Last played {new Date(lastLaunched * 1000).toLocaleDateString()}</span>
               </>
             ) : null}
           </div>
 
-          {/* Actions */}
-          <div className="fc-actions">
-            <button className="fc-btn fc-btn--launch" onClick={onLaunch}>
+          <div className={styles.actions}>
+            <button className={`${styles.btn} ${styles.launch}`} onClick={onLaunch}>
               <Play size={13} fill="currentColor" strokeWidth={0} />
               Launch
             </button>
-            <button className="fc-btn fc-btn--ghost" onClick={onSkip}>
+            <button className={`${styles.btn} ${styles.ghost}`} onClick={onSkip}>
               <SkipForward size={14} />
               Skip
             </button>
-            <div className="fc-divider" />
-            <button className="fc-btn fc-btn--ghost fc-btn--completed" onClick={() => onSetStatus("completed")}>
+            <div className={styles.divider} />
+            <button className={`${styles.btn} ${styles.ghost} ${styles.completed}`} onClick={() => onSetStatus("completed")}>
               <CheckCircle size={14} />
               Completed
             </button>
-            <button className="fc-btn fc-btn--ghost fc-btn--drop" onClick={() => onSetStatus("abandoned")}>
+            <button className={`${styles.btn} ${styles.ghost} ${styles.drop}`} onClick={() => onSetStatus("abandoned")}>
               <XCircle size={14} />
               Drop
             </button>
-            <div className="fc-snooze">
-              <button className="fc-btn fc-btn--ghost" onClick={() => setShowSnooze(v => !v)}>
+            <div className={styles.snooze}>
+              <button className={`${styles.btn} ${styles.ghost}`} onClick={() => setShowSnooze(v => !v)}>
                 <AlarmClock size={14} />
                 Snooze
               </button>
               {showSnooze && (
-                <div className="fc-snooze-menu">
+                <div className={styles.snoozeMenu}>
                   {SNOOZE_OPTIONS.map(opt => (
                     <button
                       key={opt.days}
-                      className="fc-snooze-item"
+                      className={styles.snoozeItem}
                       onClick={() => { onSnooze(opt.days); setShowSnooze(false); }}
                     >
                       {opt.label}
@@ -163,242 +158,12 @@ export default function FeaturedCard({ candidate, onLaunch, onSkip, onSetStatus,
           </div>
         </div>
 
-        {/* Right: portrait cover */}
         {imgs.cover && (
-          <div className="fc-cover">
-            <img src={imgs.cover} alt={item.name} className="fc-cover-img" />
+          <div className={styles.cover}>
+            <img src={imgs.cover} alt={item.name} className={styles.coverImg} />
           </div>
         )}
       </div>
-
-      <style>{`
-        .fc-root {
-          position: relative;
-          width: 100%;
-          border-radius: var(--radius-lg);
-          overflow: hidden;
-          background: #0d0d10;
-          box-shadow: var(--shadow-lg);
-          min-height: 320px;
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-        }
-
-        /* background */
-        .fc-bg {
-          position: absolute;
-          inset: 0;
-          z-index: 0;
-        }
-        .fc-bg-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          object-position: center 25%;
-          opacity: .55;
-        }
-        .fc-bg-fallback {
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(135deg, #1e1e2e 0%, #0d0d10 100%);
-        }
-        .fc-bg-gradient {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            to right,
-            rgba(0,0,0,.85) 0%,
-            rgba(0,0,0,.60) 50%,
-            rgba(0,0,0,.05) 100%
-          ),
-          linear-gradient(
-            to top,
-            rgba(0,0,0,.75) 0%,
-            transparent 60%
-          );
-        }
-
-        /* body */
-        .fc-body {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          padding: var(--space-6);
-          gap: var(--space-6);
-        }
-
-        /* info column */
-        .fc-info {
-          flex: 1;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-3);
-          padding-bottom: 2px;
-        }
-        .fc-chips {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          flex-wrap: wrap;
-        }
-        .fc-chip {
-          font-size: 11px;
-          font-weight: 600;
-          padding: 2px 9px;
-          border-radius: var(--radius-full);
-          border: 1px solid transparent;
-          letter-spacing: .02em;
-          white-space: nowrap;
-        }
-        .fc-chip--online {
-          background: rgba(34,197,94,.18);
-          color: #4ade80;
-          border-color: rgba(34,197,94,.35);
-        }
-        .fc-title {
-          font-size: 32px;
-          font-weight: 800;
-          color: #fff;
-          line-height: 1.1;
-          letter-spacing: -.01em;
-          text-shadow: 0 2px 12px rgba(0,0,0,.6);
-          /* allow wrapping for long titles */
-          overflow-wrap: break-word;
-        }
-        .fc-playtime {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12.5px;
-          color: rgba(255,255,255,.55);
-        }
-        .fc-sep { opacity: .4; }
-
-        /* actions */
-        .fc-actions {
-          display: flex;
-          align-items: center;
-          gap: var(--space-2);
-          flex-wrap: wrap;
-          padding-top: var(--space-1);
-        }
-        .fc-divider {
-          width: 1px;
-          height: 20px;
-          background: rgba(255,255,255,.15);
-          margin: 0 4px;
-        }
-        .fc-btn {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          padding: 7px 14px;
-          border-radius: var(--radius-sm);
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: background .12s, border-color .12s, color .12s;
-        }
-        .fc-btn--launch {
-          background: linear-gradient(160deg, #818cf8 0%, #6366f1 55%, #4f46e5 100%);
-          border: 1px solid rgba(129,140,248,.35);
-          color: #fff;
-          padding: 7px 16px;
-          font-size: 13px;
-          font-weight: 600;
-          box-shadow: 0 2px 8px rgba(99,102,241,.4), inset 0 1px 0 rgba(255,255,255,.15);
-          transition: background .15s, box-shadow .18s, transform .12s, border-color .15s;
-        }
-        .fc-btn--launch:hover {
-          background: linear-gradient(160deg, #a5b4fc 0%, #818cf8 50%, #6366f1 100%);
-          border-color: rgba(165,180,252,.45);
-          box-shadow: 0 0 0 3px rgba(99,102,241,.2), 0 4px 14px rgba(99,102,241,.5), inset 0 1px 0 rgba(255,255,255,.2);
-          transform: translateY(-1px);
-        }
-        .fc-btn--launch:active {
-          transform: translateY(0);
-          box-shadow: 0 1px 4px rgba(99,102,241,.35), inset 0 1px 0 rgba(255,255,255,.1);
-        }
-        .fc-btn--ghost {
-          background: rgba(255,255,255,.08);
-          border: 1px solid rgba(255,255,255,.14);
-          color: rgba(255,255,255,.75);
-          backdrop-filter: blur(6px);
-        }
-        .fc-btn--ghost:hover {
-          background: rgba(255,255,255,.16);
-          border-color: rgba(255,255,255,.28);
-          color: #fff;
-        }
-        .fc-btn--drop:hover {
-          background: rgba(239,68,68,.22);
-          border-color: rgba(239,68,68,.4);
-          color: #fca5a5;
-        }
-        .fc-btn--completed {
-          background: rgba(34,197,94,.12);
-          border-color: rgba(34,197,94,.35);
-          color: #4ade80;
-          box-shadow: 0 0 8px rgba(34,197,94,.25);
-        }
-        .fc-btn--completed:hover {
-          background: rgba(34,197,94,.22);
-          border-color: rgba(34,197,94,.55);
-          color: #86efac;
-          box-shadow: 0 0 14px rgba(34,197,94,.45), 0 0 0 3px rgba(34,197,94,.15);
-        }
-
-        /* snooze */
-        .fc-snooze { position: relative; }
-        .fc-snooze-menu {
-          position: absolute;
-          bottom: calc(100% + 6px);
-          left: 0;
-          background: var(--color-bg);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          box-shadow: var(--shadow-lg);
-          min-width: 120px;
-          z-index: 50;
-          overflow: hidden;
-        }
-        .fc-snooze-item {
-          display: block;
-          width: 100%;
-          padding: 8px 14px;
-          text-align: left;
-          background: none;
-          border: none;
-          font-size: 13px;
-          color: var(--color-text-secondary);
-          cursor: pointer;
-        }
-        .fc-snooze-item:hover {
-          background: var(--color-bg-tertiary);
-          color: var(--color-text-primary);
-        }
-
-        /* portrait cover */
-        .fc-cover {
-          flex-shrink: 0;
-          width: 130px;
-          height: 195px;
-          border-radius: var(--radius-md);
-          overflow: hidden;
-          box-shadow: 0 8px 32px rgba(0,0,0,.6);
-          border: 1px solid rgba(255,255,255,.08);
-        }
-        .fc-cover-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-      `}</style>
     </div>
   );
 }

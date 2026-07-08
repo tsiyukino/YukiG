@@ -26,8 +26,18 @@ interface UseStrategyResult {
   launchAction: LaunchAction | null;
   loading: boolean;
   error: string | null;
-  /** Re-runs the strategy scan and refreshes all data. */
+  /**
+   * Re-runs the strategy scan (filesystem re-detection) and refreshes all data.
+   * Destructive: overwrites auto-detected metadata keys. Use only for explicit
+   * user-triggered rescans, never as a passive refresh.
+   */
   rescan: () => Promise<void>;
+  /**
+   * Re-reads stored metadata/display items without re-scanning the filesystem.
+   * Non-destructive — use this to reflect updated values (e.g. playtime) after
+   * a launch, so auto-detection cannot clobber user-set fields like exe_path.
+   */
+  refresh: () => Promise<void>;
 }
 
 export function useStrategy(
@@ -76,5 +86,5 @@ export function useStrategy(
     }
   }, [itemId, folderPath, strategyType, load]);
 
-  return { metadata, displayItems, launchAction, loading, error, rescan };
+  return { metadata, displayItems, launchAction, loading, error, rescan, refresh: load };
 }

@@ -13,6 +13,8 @@ interface GameRowProps {
   isSelected: boolean;
   /** Whether this game is in the user's favorites. */
   isFavorite: boolean;
+  /** Whether this game is currently running (from Steam or from YukiG). */
+  isPlaying?: boolean;
   /** When true, loads the icon image eagerly (use for first ~30 rows). */
   eager?: boolean;
   /** Called when the row is clicked. */
@@ -22,11 +24,12 @@ interface GameRowProps {
 /**
  * List-view row showing a game's icon, name, install status, and size.
  * Falls back to a Gamepad2 icon when no game icon URL is available.
+ * Gets a green tint and pulsing dot while running.
  */
-export default function GameRow({ game, isSelected, isFavorite, eager, onOpen }: GameRowProps) {
+export default function GameRow({ game, isSelected, isFavorite, isPlaying, eager, onOpen }: GameRowProps) {
   return (
     <button
-      className={`sp-row ${!game.is_installed ? "sp-row--uninstalled" : ""} ${isSelected ? "sp-row--selected" : ""}`}
+      className={`sp-row ${!game.is_installed ? "sp-row--uninstalled" : ""} ${isSelected ? "sp-row--selected" : ""} ${isPlaying ? "sp-row--playing" : ""}`}
       onClick={onOpen}
     >
       <div className="sp-row-icon-wrap">
@@ -42,7 +45,10 @@ export default function GameRow({ game, isSelected, isFavorite, eager, onOpen }:
           <Gamepad2 size={14} className="sp-row-icon-fallback" />
         )}
       </div>
-      <span className="sp-row-name">{game.name}</span>
+      <span className="sp-row-name">
+        {isPlaying && <span className="sp-row-playing-dot" aria-label="playing now" />}
+        {game.name}
+      </span>
       {isFavorite && <Heart size={11} className="sp-row-fav" fill="currentColor" />}
       <div className="sp-row-right">
         {game.is_installed && game.size_on_disk > 0 && (

@@ -78,36 +78,16 @@ export async function strategyGetMetadataSchema(strategyType: string): Promise<M
 }
 
 /**
- * Executes the launch action for an item (fire-and-forget).
- * @param itemId - The item UUID
- * @param folderPath - Absolute path to the item's folder
- * @param strategyType - Strategy identifier
- * @throws {string} If no launch action exists, strategy is unknown, or spawn fails
- */
-export async function strategyExecuteLaunch(
-  itemId: string,
-  folderPath: string,
-  strategyType: string
-): Promise<void> {
-  return invoke("strategy_execute_launch", { itemId, folderPath, strategyType });
-}
-
-/**
  * Executes the launch action and tracks playtime.
- * Blocks until the game process exits, then updates total_playtime_minutes
+ * Blocks until the game process exits, then updates total_playtime_seconds
  * and last_launched in strategy_metadata. Call from a non-blocking context.
+ * The backend resolves folder path and strategy from the database.
  * @param itemId - The item UUID
- * @param folderPath - Absolute path to the game folder
- * @param strategyType - Strategy identifier
- * @returns Session duration in minutes
+ * @returns Session duration in seconds
  * @throws {string} If the launch fails
  */
-export async function strategyExecuteLaunchTracked(
-  itemId: string,
-  folderPath: string,
-  strategyType: string
-): Promise<number> {
-  return invoke("strategy_execute_launch_tracked", { itemId, folderPath, strategyType });
+export async function strategyExecuteLaunchTracked(itemId: string): Promise<number> {
+  return invoke("strategy_execute_launch_tracked", { itemId });
 }
 
 /**

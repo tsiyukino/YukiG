@@ -7,6 +7,7 @@
  * - Toggle           — styled checkbox toggle switch
  * - SegmentedControl — inline button group for mutually exclusive choices
  */
+import s from "./settings.module.css";
 
 // ─── SettingsSection ──────────────────────────────────────────────────────────
 
@@ -20,8 +21,8 @@ interface SettingsSectionProps {
 
 export function SettingsSection({ icon, title, children }: SettingsSectionProps) {
   return (
-    <div className="sp-section">
-      <div className="sp-section-heading">{icon}{title}</div>
+    <div className={s.section}>
+      <div className={s.sectionHeading}>{icon}{title}</div>
       {children}
     </div>
   );
@@ -39,12 +40,12 @@ interface SettingsRowProps {
 
 export function SettingsRow({ label, description, children }: SettingsRowProps) {
   return (
-    <div className="sp-row">
-      <div className="sp-row-info">
-        <div className="sp-row-label">{label}</div>
-        {description && <div className="sp-row-desc">{description}</div>}
+    <div className={s.row}>
+      <div className={s.rowInfo}>
+        <div className={s.rowLabel}>{label}</div>
+        {description && <div className={s.rowDesc}>{description}</div>}
       </div>
-      <div className="sp-row-control">{children}</div>
+      <div className={s.rowControl}>{children}</div>
     </div>
   );
 }
@@ -62,9 +63,9 @@ interface ToggleProps {
 
 export function Toggle({ checked, onChange, disabled = false }: ToggleProps) {
   return (
-    <label className="sp-toggle">
+    <label className={s.toggle}>
       <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} />
-      <span className="sp-toggle-track" />
+      <span className={s.toggleTrack} />
     </label>
   );
 }
@@ -90,11 +91,11 @@ export function SegmentedControl<T extends string>({
   disabled,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="sp-seg">
+    <div className={s.seg}>
       {options.map((opt) => (
         <button
           key={opt.value}
-          className={`sp-seg-btn ${value === opt.value ? "sp-seg-btn--active" : ""}`}
+          className={value === opt.value ? `${s.segBtn} ${s.segActive}` : s.segBtn}
           onClick={() => onChange(opt.value)}
           disabled={disabled}
         >

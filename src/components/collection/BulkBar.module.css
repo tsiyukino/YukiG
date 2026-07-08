@@ -1,0 +1,198 @@
+/* Inverted (dark-on-light / light-on-dark) floating action bar */
+.bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 16px;
+  margin-top: var(--space-4);
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  animation: bar-appear var(--duration-normal) var(--ease-out);
+  white-space: nowrap;
+}
+
+@keyframes bar-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ghostBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: rgba(255, 255, 255, 0.7);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ghostBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  background: var(--color-danger);
+  color: #ffffff;
+  transition: background var(--transition-fast);
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Tag dropdown ── */
+.tagWrap {
+  position: relative;
+}
+
+.tagBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.tagBtn:hover,
+.tagBtnActive {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  min-width: 230px;
+  background: var(--color-text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.search {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: var(--text-sm);
+  color: #ffffff;
+  flex: 1;
+  min-width: 0;
+}
+
+.search::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.sectionLabel {
+  padding: 5px 10px 2px;
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 7px 10px;
+  font-size: var(--text-md);
+  color: rgba(255, 255, 255, 0.85);
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.optionRemove:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.optionCreate {
+  /* accent lightened for legibility on the inverted bar */
+  color: color-mix(in srgb, var(--color-accent) 55%, #ffffff);
+}
+
+.tagDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.empty {
+  display: block;
+  padding: 10px;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+}

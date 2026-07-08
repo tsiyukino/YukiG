@@ -2,6 +2,7 @@
  * Modal confirmation dialog for destructive actions.
  */
 import { createPortal } from "react-dom";
+import styles from "./ConfirmDialog.module.css";
 
 interface ConfirmDialogProps {
   /** Whether the dialog is visible. */
@@ -36,80 +37,22 @@ export default function ConfirmDialog({
 
   return createPortal(
     <div
-      className="dialog-overlay"
+      className={styles.overlay}
       onMouseDown={(e) => { mouseDownOnOverlay = e.target === e.currentTarget; }}
       onMouseUp={(e) => { if (mouseDownOnOverlay && e.target === e.currentTarget) onCancel(); }}
     >
-      <div className="dialog" onMouseDown={(e) => e.stopPropagation()}>
-        <h2 className="dialog-title">{title}</h2>
-        <p className="dialog-message">{message}</p>
-        <div className="dialog-actions">
-          <button className="dialog-btn dialog-btn--cancel" onClick={onCancel}>
+      <div className={styles.dialog} onMouseDown={(e) => e.stopPropagation()}>
+        <h2 className={styles.title}>{title}</h2>
+        <p className={styles.message}>{message}</p>
+        <div className={styles.actions}>
+          <button className={`${styles.btn} ${styles.cancel}`} onClick={onCancel}>
             Cancel
           </button>
-          <button className="dialog-btn dialog-btn--danger" onClick={onConfirm}>
+          <button className={`${styles.btn} ${styles.danger}`} onClick={onConfirm}>
             {confirmLabel}
           </button>
         </div>
       </div>
-      <style>{`
-        .dialog-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-        .dialog {
-          background: var(--color-bg);
-          border-radius: var(--radius-md);
-          padding: var(--space-6);
-          width: 360px;
-          box-shadow: var(--shadow-lg);
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-4);
-        }
-        .dialog-title {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--color-text-primary);
-        }
-        .dialog-message {
-          font-size: 14px;
-          color: var(--color-text-secondary);
-          line-height: 1.6;
-        }
-        .dialog-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: var(--space-2);
-        }
-        .dialog-btn {
-          padding: var(--space-2) var(--space-4);
-          border-radius: var(--radius-sm);
-          font-size: 14px;
-          font-weight: 500;
-          transition: background var(--transition-fast);
-        }
-        .dialog-btn--cancel {
-          background: var(--color-bg-secondary);
-          color: var(--color-text-secondary);
-          border: 1px solid var(--color-border);
-        }
-        .dialog-btn--cancel:hover {
-          background: var(--color-bg-tertiary);
-        }
-        .dialog-btn--danger {
-          background: var(--color-danger);
-          color: white;
-        }
-        .dialog-btn--danger:hover {
-          background: var(--color-danger-hover);
-        }
-      `}</style>
     </div>,
     document.body
   );

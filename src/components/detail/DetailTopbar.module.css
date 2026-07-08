@@ -1,0 +1,63 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.back:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.btn:hover {
+  background: var(--color-bg-secondary);
+}
+
+.favorite:hover {
+  color: var(--color-accent-warm);
+}
+
+.favoriteActive {
+  color: var(--color-accent-warm);
+}
+
+.favoriteActive:hover {
+  color: var(--color-text-muted);
+}
+
+.action:hover,
+.edit:hover {
+  color: var(--color-accent);
+}
+
+.delete:hover {
+  color: var(--color-danger);
+}

@@ -4,6 +4,7 @@ import { Tag, TagGroup } from "@/types/tag";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TagChip from "@/components/tags/TagChip";
 import NewTagInline from "@/components/tags/NewTagInline";
+import styles from "./TagGroupSection.module.css";
 
 interface TagGroupSectionProps {
   /** The tag group to display. */
@@ -47,7 +48,6 @@ export default function TagGroupSection({
   const tagDragIndexRef = useRef<number | null>(null);
   const [tagDragOver, setTagDragOver] = useState<number | null>(null);
   const [tagDragging, setTagDragging] = useState<number | null>(null);
-  const tagsContainerRef = useRef<HTMLDivElement>(null);
 
   // Sync local tags when parent updates (search, create, delete)
   useEffect(() => { setLocalTags(tags); }, [tags]);
@@ -82,48 +82,48 @@ export default function TagGroupSection({
     : localTags;
 
   return (
-    <div className="gs">
-      <div className="gs-header">
+    <div className={styles.gs}>
+      <div className={styles.header}>
         {isDraggable && !editing && (
-          <div className="gs-drag-handle" title="Drag to reorder">
+          <div className={styles.dragHandle} title="Drag to reorder">
             <GripVertical size={14} />
           </div>
         )}
         {editing ? (
-          <div className="gs-edit-row">
+          <div className={styles.editRow}>
             <input
-              className="gs-edit-input"
+              className={styles.editInput}
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               placeholder="Group name"
               autoFocus
             />
             <input
-              className="gs-edit-input gs-edit-prefix"
+              className={`${styles.editInput} ${styles.editPrefix}`}
               value={editPrefix}
               onChange={(e) => setEditPrefix(e.target.value)}
               placeholder="Prefix (e.g. chem:)"
             />
-            <button className="gs-icon-btn gs-icon-btn--confirm" onClick={handleSave} disabled={saving}>
+            <button className={`${styles.iconBtn} ${styles.confirmBtn}`} onClick={handleSave} disabled={saving}>
               <Check size={13} />
             </button>
-            <button className="gs-icon-btn" onClick={() => { setEditing(false); setEditName(group.name); setEditPrefix(group.prefix); }}>
+            <button className={styles.iconBtn} onClick={() => { setEditing(false); setEditName(group.name); setEditPrefix(group.prefix); }}>
               <X size={13} />
             </button>
           </div>
         ) : (
           <>
-            <div className="gs-title-row">
+            <div className={styles.titleRow}>
               <TagIcon size={13} color="var(--color-accent)" />
-              <span className="gs-name">{group.name}</span>
-              {group.prefix && <code className="gs-prefix">{group.prefix}</code>}
-              <span className="gs-count">{localTags.length} tag{localTags.length !== 1 ? "s" : ""}</span>
+              <span className={styles.name}>{group.name}</span>
+              {group.prefix && <code className={styles.prefix}>{group.prefix}</code>}
+              <span className={styles.count}>{localTags.length} tag{localTags.length !== 1 ? "s" : ""}</span>
             </div>
-            <div className="gs-actions">
-              <button className="gs-icon-btn" onClick={() => setEditing(true)} title="Edit group">
+            <div className={styles.actions}>
+              <button className={styles.iconBtn} onClick={() => setEditing(true)} title="Edit group">
                 <Pencil size={12} />
               </button>
-              <button className="gs-icon-btn gs-icon-btn--danger" onClick={() => setConfirmDelete(true)} title="Delete group">
+              <button className={`${styles.iconBtn} ${styles.dangerBtn}`} onClick={() => setConfirmDelete(true)} title="Delete group">
                 <Trash2 size={12} />
               </button>
             </div>
@@ -131,23 +131,23 @@ export default function TagGroupSection({
         )}
       </div>
 
-      <div className="gs-tags" ref={tagsContainerRef} onDrop={(e) => { e.preventDefault(); if (tagDragOver !== null) handleTagDrop(tagDragOver); }} onDragOver={(e) => e.preventDefault()}>
+      <div className={styles.tags} onDrop={(e) => { e.preventDefault(); if (tagDragOver !== null) handleTagDrop(tagDragOver); }} onDragOver={(e) => e.preventDefault()}>
         {visibleTags.map((tag, index) => (
-          <div key={tag.id} className="gs-tag-wrapper">
+          <div key={tag.id} className={styles.tagWrapper}>
             {tagDragOver === index && tagDragging !== null && tagDragging !== index && tagDragOver < tagDragging && !searchQuery && (
-              <div className="gs-tag-slot" />
+              <div className={styles.tagSlot} />
             )}
             <div
               draggable={!searchQuery}
               onDragStart={() => handleTagDragStart(index)}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setTagDragOver(index); }}
               onDragEnd={() => { setTagDragOver(null); setTagDragging(null); }}
-              className={`gs-tag-drag${tagDragging === index && !searchQuery ? " gs-tag-drag--dragging" : ""}`}
+              className={tagDragging === index && !searchQuery ? `${styles.tagDrag} ${styles.tagDragging}` : styles.tagDrag}
             >
               <TagChip tag={tag} onDelete={() => onDeleteTag(tag)} onClick={() => onTagClick(tag)} />
             </div>
             {tagDragOver === index && tagDragging !== null && tagDragging !== index && tagDragOver > tagDragging && !searchQuery && (
-              <div className="gs-tag-slot" />
+              <div className={styles.tagSlot} />
             )}
           </div>
         ))}
@@ -162,51 +162,6 @@ export default function TagGroupSection({
         onConfirm={async () => { await onDeleteGroup(group); setConfirmDelete(false); }}
         onCancel={() => setConfirmDelete(false)}
       />
-
-      <style>{`
-        .gs { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
-        .gs-header {
-          display: flex; align-items: center; justify-content: space-between;
-          gap: var(--space-3);
-          padding: var(--space-3) var(--space-4);
-          background: var(--color-bg-secondary);
-          border-bottom: 1px solid var(--color-border);
-          min-height: 44px;
-        }
-        .gs-drag-handle {
-          color: var(--color-text-muted); cursor: grab; flex-shrink: 0;
-          opacity: 0; transition: opacity var(--transition-fast);
-          display: flex; align-items: center;
-        }
-        .gs-header:hover .gs-drag-handle { opacity: 1; }
-        .gs-title-row { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; }
-        .gs-name { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
-        .gs-prefix { font-family: var(--font-mono); font-size: 11px; background: var(--color-accent-light); color: var(--color-accent); padding: 1px 6px; border-radius: var(--radius-sm); }
-        .gs-count { font-size: 11.5px; color: var(--color-text-muted); margin-left: auto; flex-shrink: 0; }
-        .gs-actions { display: flex; gap: var(--space-1); flex-shrink: 0; }
-        .gs-edit-row { display: flex; align-items: center; gap: var(--space-2); flex: 1; }
-        .gs-edit-input { height: 28px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0 var(--space-2); font-size: 12.5px; background: var(--color-bg); outline: none; flex: 1; min-width: 0; transition: border-color var(--transition-fast); }
-        .gs-edit-input:focus { border-color: var(--color-accent); }
-        .gs-edit-prefix { flex: 0 0 120px; font-family: var(--font-mono); font-size: 12px; }
-        .gs-icon-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: var(--radius-sm); color: var(--color-text-muted); transition: color var(--transition-fast), background var(--transition-fast); }
-        .gs-icon-btn:hover { color: var(--color-text-primary); background: var(--color-bg-tertiary); }
-        .gs-icon-btn--confirm:hover { color: var(--color-success) !important; }
-        .gs-icon-btn--danger:hover { color: var(--color-danger) !important; background: var(--color-danger-light) !important; }
-        .gs-tags { padding: var(--space-3) var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; min-height: 52px; }
-        .gs-tag-wrapper { display: inline-flex; align-items: center; gap: var(--space-2); }
-        .gs-tag-drag { display: inline-flex; cursor: grab; transition: opacity 200ms; }
-        .gs-tag-drag--dragging { opacity: 0.35; }
-        .gs-tag-slot {
-          display: inline-flex;
-          width: 60px;
-          height: 26px;
-          border-radius: var(--radius-full);
-          border: 2px dashed var(--color-accent);
-          background: var(--color-accent-light);
-          animation: gs-slot-appear 150ms ease;
-        }
-        @keyframes gs-slot-appear { from { opacity: 0; width: 0; } to { opacity: 1; width: 60px; } }
-      `}</style>
     </div>
   );
 }

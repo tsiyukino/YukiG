@@ -1,0 +1,15 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-base);
+}

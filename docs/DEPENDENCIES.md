@@ -20,7 +20,7 @@ Shell command execution. Initialized with `tauri_plugin_shell::init()`.
 
 **Config**: Requires `"shell": { "open": true }` in the `plugins` block of `tauri.conf.json` to allow opening URLs/files.
 
-**Quirk — launching game executables**: `Command.create` from the frontend requires the command to be declared in `tauri.conf.json` under `"shell": { "scope": [...] }`. Since game exe paths are dynamic (user-chosen), they cannot be pre-declared. **Solution**: launch exes from the Rust backend via `std::process::Command::new(exe_path).spawn()` inside `strategy_execute_launch`. This bypasses the allowlist requirement because the backend is fully trusted.
+**Quirk — launching game executables**: `Command.create` from the frontend requires the command to be declared in `tauri.conf.json` under `"shell": { "scope": [...] }`. Since game exe paths are dynamic (user-chosen), they cannot be pre-declared. **Solution**: launch exes from the Rust backend via `std::process::Command::new(exe_path).spawn()` inside `services/launcher.rs` (`launch_tracked`). This bypasses the allowlist requirement because the backend is fully trusted.
 
 ### `rusqlite = "0.32"` + `features = ["bundled"]`
 SQLite bindings. `bundled` compiles SQLite from source, avoiding system library dependency. This is required on Windows to avoid missing DLL issues.
@@ -86,6 +86,11 @@ Client-side routing. Using `BrowserRouter` + `Routes`/`Route`.
 
 ### `lucide-react = "^0.469"`
 Icon set. All icons in the app come from Lucide. Import by name: `import { FolderOpen } from "lucide-react"`.
+
+### `@fontsource-variable/geist = "^5"` + `@fontsource-variable/sora = "^5"`
+Self-hosted variable fonts, bundled into the app at build time (no network fetch — the app must render correctly offline). Imported once in `src/main.tsx`; registered family names are `"Geist Variable"` (body, `--font-sans`) and `"Sora Variable"` (display headings/numbers, `--font-display`).
+
+**Quirk — family names**: The fontsource variable packages register the family with a ` Variable` suffix. `font-family: "Geist"` will silently fall back to the system stack; it must be `"Geist Variable"`.
 
 ### `vite = "^6"` + `@vitejs/plugin-react = "^4"`
 Build tool and React plugin. Configured in `vite.config.ts`.

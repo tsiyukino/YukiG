@@ -14,6 +14,8 @@ interface GameCardProps {
   isSelected: boolean;
   /** Whether this game is in the user's favorites. */
   isFavorite: boolean;
+  /** Whether this game is currently running (from Steam or from YukiG). */
+  isPlaying?: boolean;
   /** When true, loads the cover image eagerly (use for first ~20 cards). */
   eager?: boolean;
   /** Called when the card is clicked. */
@@ -22,12 +24,13 @@ interface GameCardProps {
 
 /**
  * Grid-view card showing a game's cover art, name, size, and favorite status.
- * Dimmed when the game is not installed.
+ * Dimmed when the game is not installed. Gets a green "Playing" overlay badge
+ * and outline while running.
  */
-export default function GameCard({ game, isSelected, isFavorite, eager, onOpen }: GameCardProps) {
+export default function GameCard({ game, isSelected, isFavorite, isPlaying, eager, onOpen }: GameCardProps) {
   return (
     <button
-      className={`sp-card ${!game.is_installed ? "sp-card--uninstalled" : ""} ${isSelected ? "sp-card--selected" : ""}`}
+      className={`sp-card ${!game.is_installed ? "sp-card--uninstalled" : ""} ${isSelected ? "sp-card--selected" : ""} ${isPlaying ? "sp-card--playing" : ""}`}
       onClick={onOpen}
     >
       <div className="sp-card-art-wrap">
@@ -38,6 +41,12 @@ export default function GameCard({ game, isSelected, isFavorite, eager, onOpen }
           loading={eager ? "eager" : "lazy"}
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
+        {isPlaying && (
+          <span className="sp-card-playing" title={`${game.name} — playing now`}>
+            <span className="sp-card-playing-dot" aria-hidden="true" />
+            Playing
+          </span>
+        )}
         {!game.is_installed && (
           <span className="sp-card-badge">Not installed</span>
         )}

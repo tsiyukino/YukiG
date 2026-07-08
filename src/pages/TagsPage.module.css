@@ -1,0 +1,92 @@
+.page {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px var(--space-3);
+  background: var(--color-bg-secondary);
+  transition: border-color var(--transition-fast);
+}
+
+.searchWrap:focus-within {
+  border-color: var(--color-accent);
+}
+
+.search {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: var(--text-md);
+  color: var(--color-text-primary);
+}
+
+.search::placeholder {
+  color: var(--color-text-muted);
+}
+
+.searchClear {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.searchClear:hover {
+  color: var(--color-text-primary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dragWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dragGroup {
+  border-radius: var(--radius-md);
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.dragging {
+  opacity: 0.35;
+}
+
+.dropSlot {
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--color-accent);
+  background: var(--color-accent-light);
+  min-height: 60px;
+  animation: slot-appear var(--duration-fast) var(--ease-out);
+}
+
+@keyframes slot-appear {
+  from {
+    opacity: 0;
+    transform: scaleY(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.noResults {
+  font-size: var(--text-md);
+  color: var(--color-text-muted);
+  padding: var(--space-4) 0;
+  text-align: center;
+}

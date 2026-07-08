@@ -10,11 +10,12 @@
  * @param itemId - The item UUID
  * @param folderPath - Absolute path to the game folder
  */
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { Play, FolderOpen, RefreshCw, Terminal, Image, Clock } from "lucide-react";
 import { strategyExecuteLaunchTracked, shellOpenPath } from "@/services/tauriCommands";
 import { useStrategy } from "@/hooks/useStrategy";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
+import styles from "./GameItemView.module.css";
 
 function fmtSeconds(secs: number): string {
   if (secs === 0) return "Never played";
@@ -33,7 +34,7 @@ interface GameItemViewProps {
 
 /** Renders game-specific details with per-path action buttons. */
 export default function GameItemView({ itemId, folderPath }: GameItemViewProps) {
-  const { metadata, loading, error, rescan } = useStrategy(itemId, folderPath, "game");
+  const { metadata, loading, error, rescan, refresh } = useStrategy(itemId, folderPath, "game");
   const [launching, setLaunching] = useState(false);
   const [running, setRunning] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -52,9 +53,11 @@ export default function GameItemView({ itemId, folderPath }: GameItemViewProps) 
       await new Promise((r) => setTimeout(r, 300));
       setLaunching(false);
       setRunning(true);
-      await strategyExecuteLaunchTracked(itemId, folderPath, "game");
-      // Refresh metadata so updated playtime shows without a manual rescan.
-      rescan();
+      await strategyExecuteLaunchTracked(itemId);
+      // Refresh metadata to show updated playtime. Must NOT rescan: a rescan
+      // re-detects exe_path from the folder and would clobber a user-set exe
+      // (e.g. ModOrganizer.exe → helper.exe once MO2 drops its helper on disk).
+      refresh();
     } catch (e) {
       setActionError(String(e));
     } finally {
@@ -75,223 +78,83 @@ export default function GameItemView({ itemId, folderPath }: GameItemViewProps) 
   if (loading) return <LoadingSpinner message="Loading game info…" />;
 
   return (
-    <div className="giv">
-      {error && <p className="giv-error">{error}</p>}
+    <div className={styles.giv}>
+      {error && <p className={styles.error}>{error}</p>}
 
-      {/* Executable */}
-      <div className="giv-row">
-        <div className="giv-row-left">
-          <Terminal size={13} className="giv-row-icon" />
-          <div className="giv-row-content">
-            <span className="giv-row-label">Executable</span>
-            {exePath
-              ? <span className="giv-path">{exePath}</span>
-              : <span className="giv-missing">Not set</span>
-            }
-          </div>
-        </div>
-        <button
-          className="giv-action-btn giv-action-btn--primary"
-          onClick={handleLaunch}
-          disabled={!exePath || launching || running}
-          title={exePath ? "Launch game" : "No executable set"}
-        >
-          <Play size={12} />
-          {launching ? "Launching…" : running ? "Running…" : "Launch"}
-        </button>
-      </div>
+      <Row icon={<Terminal size={13} className={styles.rowIcon} />} label="Executable"
+        action={
+          <button
+            className={`${styles.actionBtn} ${styles.primary}`}
+            onClick={handleLaunch}
+            disabled={!exePath || launching || running}
+            title={exePath ? "Launch game" : "No executable set"}
+          >
+            <Play size={12} />
+            {launching ? "Launching…" : running ? "Running…" : "Launch"}
+          </button>
+        }>
+        {exePath
+          ? <span className={styles.path}>{exePath}</span>
+          : <span className={styles.missing}>Not set</span>}
+      </Row>
 
-      {/* Playtime */}
-      <div className="giv-row">
-        <div className="giv-row-left">
-          <Clock size={13} className="giv-row-icon" />
-          <div className="giv-row-content">
-            <span className="giv-row-label">Time Played</span>
-            <span className="giv-path">{fmtSeconds(totalSecs)}</span>
-            {lastLaunched > 0 && (
-              <span className="giv-last-launched">
-                Last played {new Date(lastLaunched * 1000).toLocaleDateString()}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      <Row icon={<Clock size={13} className={styles.rowIcon} />} label="Time Played">
+        <span className={styles.path}>{fmtSeconds(totalSecs)}</span>
+        {lastLaunched > 0 && (
+          <span className={styles.lastLaunched}>
+            Last played {new Date(lastLaunched * 1000).toLocaleDateString()}
+          </span>
+        )}
+      </Row>
 
-      {/* Mod folder */}
       {modFolder && (
-        <div className="giv-row">
-          <div className="giv-row-left">
-            <FolderOpen size={13} className="giv-row-icon" />
-            <div className="giv-row-content">
-              <span className="giv-row-label">Mod Folder</span>
-              <span className="giv-path">{modFolder}</span>
-            </div>
-          </div>
-          <button
-            className="giv-action-btn"
-            onClick={() => handleOpenFolder(modFolder)}
-            title="Open in Explorer"
-          >
-            <FolderOpen size={12} />
-            Open Folder
-          </button>
-        </div>
+        <Row icon={<FolderOpen size={13} className={styles.rowIcon} />} label="Mod Folder"
+          action={<OpenFolderButton onClick={() => handleOpenFolder(modFolder)} />}>
+          <span className={styles.path}>{modFolder}</span>
+        </Row>
       )}
 
-      {/* Screenshots folder */}
       {screenshotFolder && (
-        <div className="giv-row">
-          <div className="giv-row-left">
-            <Image size={13} className="giv-row-icon" />
-            <div className="giv-row-content">
-              <span className="giv-row-label">Screenshots Folder</span>
-              <span className="giv-path">{screenshotFolder}</span>
-            </div>
-          </div>
-          <button
-            className="giv-action-btn"
-            onClick={() => handleOpenFolder(screenshotFolder)}
-            title="Open in Explorer"
-          >
-            <FolderOpen size={12} />
-            Open Folder
-          </button>
-        </div>
+        <Row icon={<Image size={13} className={styles.rowIcon} />} label="Screenshots Folder"
+          action={<OpenFolderButton onClick={() => handleOpenFolder(screenshotFolder)} />}>
+          <span className={styles.path}>{screenshotFolder}</span>
+        </Row>
       )}
 
-      {/* Rescan */}
-      <div className="giv-footer">
-        <button className="giv-rescan-btn" onClick={rescan} title="Re-scan game folder">
+      <div className={styles.footer}>
+        <button className={styles.rescanBtn} onClick={rescan} title="Re-scan game folder">
           <RefreshCw size={12} />
           Rescan
         </button>
       </div>
 
-      {actionError && <p className="giv-error">{actionError}</p>}
-
-      <style>{`
-        .giv {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-2);
-        }
-        .giv-error {
-          font-size: 12px;
-          color: var(--color-danger);
-        }
-        .giv-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: var(--space-3);
-          padding: var(--space-3);
-          background: var(--color-bg-secondary);
-          border-radius: var(--radius-sm);
-          border: 1px solid var(--color-border-subtle);
-        }
-        .giv-row-left {
-          display: flex;
-          align-items: flex-start;
-          gap: var(--space-2);
-          min-width: 0;
-          flex: 1;
-        }
-        .giv-row-icon {
-          color: var(--color-text-muted);
-          flex-shrink: 0;
-          margin-top: 2px;
-        }
-        .giv-row-content {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
-        }
-        .giv-row-label {
-          font-size: 10px;
-          font-weight: 600;
-          color: var(--color-text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-        }
-        .giv-path {
-          font-size: 11.5px;
-          font-family: var(--font-mono);
-          color: var(--color-text-primary);
-          word-break: break-all;
-        }
-        .giv-missing {
-          font-size: 12px;
-          color: var(--color-text-muted);
-          font-style: italic;
-        }
-        .giv-last-launched {
-          font-size: 10.5px;
-          color: var(--color-text-muted);
-        }
-        .giv-action-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 5px 10px;
-          color: var(--color-text-secondary);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          font-size: 11.5px;
-          font-weight: 500;
-          white-space: nowrap;
-          flex-shrink: 0;
-          background: var(--color-bg);
-          transition: background var(--transition-fast), color var(--transition-fast);
-        }
-        .giv-action-btn:hover:not(:disabled) {
-          background: var(--color-bg-tertiary);
-          color: var(--color-text-primary);
-        }
-        .giv-action-btn--primary {
-          background: linear-gradient(160deg, #818cf8 0%, #6366f1 55%, #4f46e5 100%);
-          color: #fff;
-          border-color: rgba(129,140,248,.35);
-          box-shadow: 0 1px 6px rgba(99,102,241,.35), inset 0 1px 0 rgba(255,255,255,.15);
-          transition: background .15s, box-shadow .18s, transform .12s, border-color .15s, opacity .15s;
-        }
-        .giv-action-btn--primary:hover:not(:disabled) {
-          background: linear-gradient(160deg, #a5b4fc 0%, #818cf8 50%, #6366f1 100%);
-          border-color: rgba(165,180,252,.45);
-          box-shadow: 0 0 0 3px rgba(99,102,241,.18), 0 3px 10px rgba(99,102,241,.45), inset 0 1px 0 rgba(255,255,255,.2);
-          transform: translateY(-1px);
-          color: #fff;
-        }
-        .giv-action-btn--primary:active:not(:disabled) {
-          transform: translateY(0);
-          box-shadow: 0 1px 4px rgba(99,102,241,.3), inset 0 1px 0 rgba(255,255,255,.1);
-        }
-        .giv-action-btn:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-        .giv-footer {
-          display: flex;
-          justify-content: flex-end;
-          padding-top: var(--space-1);
-        }
-        .giv-rescan-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 4px 10px;
-          color: var(--color-text-muted);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          font-size: 11px;
-          background: transparent;
-          transition: background var(--transition-fast), color var(--transition-fast);
-        }
-        .giv-rescan-btn:hover {
-          background: var(--color-bg-secondary);
-          color: var(--color-text-primary);
-        }
-      `}</style>
+      {actionError && <p className={styles.error}>{actionError}</p>}
     </div>
+  );
+}
+
+function Row({ icon, label, action, children }: {
+  icon: ReactNode; label: string; action?: ReactNode; children: ReactNode;
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowLeft}>
+        {icon}
+        <div className={styles.rowContent}>
+          <span className={styles.rowLabel}>{label}</span>
+          {children}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function OpenFolderButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button className={styles.actionBtn} onClick={onClick} title="Open in Explorer">
+      <FolderOpen size={12} />
+      Open Folder
+    </button>
   );
 }

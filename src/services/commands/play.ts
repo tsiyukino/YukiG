@@ -13,6 +13,13 @@ export interface PlaySession {
   ended_at: string | null;
 }
 
+/** A game currently being played, as tracked by the in-memory registry. */
+export interface ActiveSession {
+  item_id: string;
+  /** Unix timestamp (seconds) when the session started. */
+  started_at: number;
+}
+
 /** Story-mode play status for a game. */
 export type StoryStatus =
   | "unplayed"
@@ -63,6 +70,18 @@ export async function sessionEnd(sessionId: string): Promise<void> {
  */
 export async function sessionGetByItem(itemId: string): Promise<PlaySession[]> {
   return invoke("session_get_by_item", { itemId });
+}
+
+/**
+ * Returns the items currently being played (local games launched via YukiG and
+ * Steam games detected via Steam's registry).
+ *
+ * Read on window (re)creation to rebuild "now playing" state, since the backend
+ * is the source of truth and the tray flow destroys the webview.
+ * @throws {string} If the query fails
+ */
+export async function sessionGetActive(): Promise<ActiveSession[]> {
+  return invoke("session_get_active");
 }
 
 // ---------------------------------------------------------------------------

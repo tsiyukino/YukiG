@@ -7,6 +7,7 @@ import SteamIcon from "@/components/common/SteamIcon";
 import { steamImageSrc } from "@/utils/pathUtils";
 import StatTile from "@/components/status/StatTile";
 import { DbData } from "@/components/status/LocalTab";
+import s from "./status.module.css";
 
 function fmtMinutes(mins: number): string {
   if (mins === 0) return "0h";
@@ -48,16 +49,16 @@ interface SpotlightCardProps {
 /** Game spotlight card: portrait art with name+meta below. */
 function SpotlightCard({ eyebrow, heroSrc, name, meta }: SpotlightCardProps) {
   return (
-    <div className="stp-scard">
-      <div className="stp-scard-eyebrow">{eyebrow}</div>
-      <div className="stp-scard-art-wrap">
-        <img src={heroSrc} alt="" className="stp-scard-art" loading="lazy"
+    <div className={s.scard}>
+      <div className={s.scardEyebrow}>{eyebrow}</div>
+      <div className={s.scardArtWrap}>
+        <img src={heroSrc} alt="" className={s.scardArt} loading="lazy"
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-        <div className="stp-scard-gradient" />
+        <div className={s.scardGradient} />
       </div>
-      <div className="stp-scard-foot">
-        <span className="stp-scard-name">{name}</span>
-        <span className="stp-scard-meta">{meta}</span>
+      <div className={s.scardFoot}>
+        <span className={s.scardName}>{name}</span>
+        <span className={s.scardMeta}>{meta}</span>
       </div>
     </div>
   );
@@ -85,8 +86,8 @@ export default function OverallTab({ db, steam }: OverallTabProps) {
   const showSpotlights = (topSteam || lastSteam) && !steam.loading;
 
   return (
-    <div className="stp-tab-body">
-      <div className="stp-grid-3-3">
+    <div className={s.tabBody}>
+      <div className={s.grid3}>
         <StatTile icon={<Gamepad2 size={15} />} label="Total Games"
           value={totalGames} accent="#6366f1" delay={0}
           sub={`${db.allLocalItems.length} local · ${steamGames.length} Steam`} />
@@ -109,60 +110,60 @@ export default function OverallTab({ db, steam }: OverallTabProps) {
       </div>
 
       {/* Platform summary cards */}
-      <div className="stp-platform-row">
-        <div className="stp-pcard stp-pcard--local">
-          <div className="stp-pcard-header">
-            <div className="stp-pcard-icon stp-pcard-icon--local"><Layers size={13} /></div>
-            <span className="stp-pcard-title">Local Library</span>
+      <div className={s.platformRow}>
+        <div className={s.pcard}>
+          <div className={s.pcardHeader}>
+            <div className={`${s.pcardIcon} ${s.pcardIconLocal}`}><Layers size={13} /></div>
+            <span className={s.pcardTitle}>Local Library</span>
           </div>
-          <div className="stp-pcard-stats">
-            <div className="stp-pcard-stat">
-              <span className="stp-pcard-num">{db.userCollections.length}</span>
-              <span className="stp-pcard-lbl">Collections</span>
+          <div className={s.pcardStats}>
+            <div className={s.pcardStat}>
+              <span className={s.pcardNum}>{db.userCollections.length}</span>
+              <span className={s.pcardLbl}>Collections</span>
             </div>
-            <div className="stp-pcard-div" />
-            <div className="stp-pcard-stat">
-              <span className="stp-pcard-num">{db.allLocalItems.length}</span>
-              <span className="stp-pcard-lbl">Games</span>
+            <div className={s.pcardDiv} />
+            <div className={s.pcardStat}>
+              <span className={s.pcardNum}>{db.allLocalItems.length}</span>
+              <span className={s.pcardLbl}>Games</span>
             </div>
-            <div className="stp-pcard-div" />
-            <div className="stp-pcard-stat">
-              <span className="stp-pcard-num">{localPlaytime > 0 ? fmtMinutes(localPlaytime) : "—"}</span>
-              <span className="stp-pcard-lbl">Playtime</span>
+            <div className={s.pcardDiv} />
+            <div className={s.pcardStat}>
+              <span className={s.pcardNum}>{localPlaytime > 0 ? fmtMinutes(localPlaytime) : "—"}</span>
+              <span className={s.pcardLbl}>Playtime</span>
             </div>
           </div>
           {topLocal && (
-            <div className="stp-pcard-highlight">
+            <div className={s.pcardHighlight}>
               <Clock size={10} />
               <span>Most played: <strong>{topLocal.name}</strong> · {fmtMinutes(topLocal.playtime_minutes)}</span>
             </div>
           )}
         </div>
 
-        <div className="stp-pcard stp-pcard--steam">
-          <div className="stp-pcard-header">
-            <div className="stp-pcard-icon stp-pcard-icon--steam"><SteamIcon size={13} /></div>
-            <span className="stp-pcard-title">Steam</span>
-            {steam.loading && <span className="stp-badge-scan">scanning…</span>}
+        <div className={s.pcard}>
+          <div className={s.pcardHeader}>
+            <div className={`${s.pcardIcon} ${s.pcardIconSteam}`}><SteamIcon size={13} /></div>
+            <span className={s.pcardTitle}>Steam</span>
+            {steam.loading && <span className={s.badgeScan}>scanning…</span>}
           </div>
-          <div className="stp-pcard-stats">
-            <div className="stp-pcard-stat">
-              <span className="stp-pcard-num">{steam.loading ? "…" : steamGames.length}</span>
-              <span className="stp-pcard-lbl">Games</span>
+          <div className={s.pcardStats}>
+            <div className={s.pcardStat}>
+              <span className={s.pcardNum}>{steam.loading ? "…" : steamGames.length}</span>
+              <span className={s.pcardLbl}>Games</span>
             </div>
-            <div className="stp-pcard-div" />
-            <div className="stp-pcard-stat">
-              <span className="stp-pcard-num">{steam.loading ? "…" : installed.length}</span>
-              <span className="stp-pcard-lbl">Installed</span>
+            <div className={s.pcardDiv} />
+            <div className={s.pcardStat}>
+              <span className={s.pcardNum}>{steam.loading ? "…" : installed.length}</span>
+              <span className={s.pcardLbl}>Installed</span>
             </div>
-            <div className="stp-pcard-div" />
-            <div className="stp-pcard-stat">
-              <span className="stp-pcard-num">{steam.loading ? "…" : fmtMinutes(steamPlaytime)}</span>
-              <span className="stp-pcard-lbl">Playtime</span>
+            <div className={s.pcardDiv} />
+            <div className={s.pcardStat}>
+              <span className={s.pcardNum}>{steam.loading ? "…" : fmtMinutes(steamPlaytime)}</span>
+              <span className={s.pcardLbl}>Playtime</span>
             </div>
           </div>
           {topSteam && !steam.loading && (
-            <div className="stp-pcard-highlight">
+            <div className={s.pcardHighlight}>
               <TrendingUp size={10} />
               <span>Most played: <strong>{topSteam.name}</strong> · {fmtMinutes(topSteam.playtime_minutes)}</span>
             </div>
@@ -172,7 +173,7 @@ export default function OverallTab({ db, steam }: OverallTabProps) {
 
       {/* Spotlights — portrait-style game cards */}
       {showSpotlights && (
-        <div className="stp-spotlight-row">
+        <div className={s.spotlightRow}>
           {topSteam && topSteam.library_image && (
             <SpotlightCard
               eyebrow={<><TrendingUp size={10} />All-Time Most Played</>}

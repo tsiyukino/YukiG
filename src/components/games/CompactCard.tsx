@@ -1,5 +1,6 @@
 import { FolderOpen, Trash2 } from "lucide-react";
 import { Collection } from "@/types/collection";
+import styles from "./CompactCard.module.css";
 
 interface CompactCardProps {
   /** The collection to display. */
@@ -22,54 +23,22 @@ export default function CompactCard({ collection, onClick, onDelete }: CompactCa
     .join("");
 
   return (
-    <button className="ccrd" onClick={onClick}>
-      <div className="ccrd-top" style={{ background: `${collection.color}16` }}>
-        <div className="ccrd-icon" style={{ background: `${collection.color}30`, color: collection.color }}>
+    <div
+      className={styles.ccrd}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter") onClick(); }}
+    >
+      <div className={styles.top} style={{ background: `${collection.color}16` }}>
+        <div className={styles.icon} style={{ background: `${collection.color}30`, color: collection.color }}>
           {initials || <FolderOpen size={13} color={collection.color} />}
         </div>
-        <button className="ccrd-del" onClick={onDelete} title="Delete">
+        <button className={styles.del} onClick={onDelete} title="Delete">
           <Trash2 size={11} />
         </button>
       </div>
-      <div className="ccrd-label">{collection.name}</div>
-
-      <style>{`
-        .ccrd {
-          display: flex; flex-direction: column;
-          border-radius: var(--radius-md);
-          border: 1px solid var(--color-border);
-          overflow: hidden;
-          background: var(--color-bg);
-          transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
-          text-align: left;
-          cursor: pointer;
-        }
-        .ccrd:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-color: var(--color-accent); }
-        .ccrd-top {
-          display: flex; align-items: flex-start; justify-content: space-between;
-          padding: var(--space-2) var(--space-2) var(--space-1);
-        }
-        .ccrd-icon {
-          width: 32px; height: 32px;
-          border-radius: var(--radius-sm);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 12px; font-weight: 700;
-        }
-        .ccrd-del {
-          opacity: 0; display: flex; align-items: center; justify-content: center;
-          width: 20px; height: 20px; border-radius: var(--radius-sm);
-          color: var(--color-text-muted);
-          transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
-        }
-        .ccrd:hover .ccrd-del { opacity: 1; }
-        .ccrd-del:hover { color: var(--color-danger); background: var(--color-danger-light); }
-        .ccrd-label {
-          padding: var(--space-1) var(--space-2) var(--space-2);
-          font-size: 12px; font-weight: 600;
-          color: var(--color-text-primary);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-      `}</style>
-    </button>
+      <div className={styles.label}>{collection.name}</div>
+    </div>
   );
 }

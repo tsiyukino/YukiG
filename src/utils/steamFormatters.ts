@@ -70,3 +70,15 @@ export function fmtDate(ts: number): string {
     year: "numeric", month: "short", day: "numeric",
   });
 }
+
+/**
+ * Formats Steam playtime minutes as hours text, or null when never played.
+ *
+ * @param minutes - Total playtime in minutes
+ * @returns "12.5 hrs", "45 min", or null for zero playtime
+ */
+export function fmtPlaytimeHours(minutes: number): string | null {
+  if (minutes <= 0) return null;
+  if (minutes >= 60) return `${(minutes / 60).toFixed(1)} hrs`;
+  return `${minutes} min`;
+}

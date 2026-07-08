@@ -6,6 +6,7 @@ import { Item } from "@/types/item";
 import { tagGetItems } from "@/services/tauriCommands";
 import { strategyLabel } from "@/utils/strategyLabel";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import styles from "./TagChip.module.css";
 
 interface TagChipProps {
   /** The tag to display. */
@@ -36,30 +37,30 @@ export default function TagChip({ tag, onDelete, onClick }: TagChipProps) {
 
   return (
     <>
-      <div className="tc-wrap">
+      <div className={styles.wrap}>
         <button
-          className="tc"
+          className={styles.chip}
           style={{ background: `${tag.color}1a`, color: tag.color, borderColor: `${tag.color}40` }}
           onClick={onClick}
           title={`View items tagged "${tag.name}"`}
         >
           {tag.name}
         </button>
-        <button className="tc-items-btn" onClick={handleShowItems} title="Show items with this tag" style={{ color: tag.color }}>
+        <button className={styles.itemsBtn} onClick={handleShowItems} title="Show items with this tag" style={{ color: tag.color }}>
           <FolderOpen size={10} />
         </button>
-        <button className="tc-del" onClick={() => setConfirmDelete(true)} title="Delete tag">
+        <button className={styles.del} onClick={() => setConfirmDelete(true)} title="Delete tag">
           <X size={10} />
         </button>
       </div>
 
       {showItems && items.length > 0 && (
-        <div className="tc-items-popover">
-          <div className="tc-items-header" style={{ color: tag.color }}>Items tagged "{tag.name}"</div>
+        <div className={styles.popover}>
+          <div className={styles.popoverHeader} style={{ color: tag.color }}>Items tagged "{tag.name}"</div>
           {items.map((item) => (
-            <button key={item.id} className="tc-item-row" onClick={() => navigate(`/collections/${item.collection_id}/items/${item.id}`)}>
+            <button key={item.id} className={styles.itemRow} onClick={() => navigate(`/collections/${item.collection_id}/items/${item.id}`)}>
               {item.name}
-              <span className="tc-item-type">{strategyLabel(item.strategy_type)}</span>
+              <span className={styles.itemType}>{strategyLabel(item.strategy_type)}</span>
             </button>
           ))}
         </div>
@@ -73,23 +74,6 @@ export default function TagChip({ tag, onDelete, onClick }: TagChipProps) {
         onConfirm={async () => { await onDelete(); setConfirmDelete(false); }}
         onCancel={() => setConfirmDelete(false)}
       />
-
-      <style>{`
-        .tc-wrap { display: inline-flex; align-items: center; border-radius: var(--radius-full); overflow: hidden; border: 1px solid transparent; }
-        .tc { padding: 4px 10px; font-size: 12.5px; font-weight: 500; border-radius: var(--radius-full) 0 0 var(--radius-full); transition: opacity var(--transition-fast); cursor: pointer; }
-        .tc:hover { opacity: 0.8; }
-        .tc-items-btn { display: flex; align-items: center; justify-content: center; width: 22px; height: 100%; opacity: 0.5; transition: opacity var(--transition-fast); cursor: pointer; }
-        .tc-items-btn:hover { opacity: 1; }
-        .tc-del { display: flex; align-items: center; justify-content: center; width: 22px; height: 100%; color: #94a3b8; border-radius: 0 var(--radius-full) var(--radius-full) 0; opacity: 0; transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast); }
-        .tc-wrap:hover .tc-del { opacity: 1; }
-        .tc-del:hover { color: var(--color-danger); background: var(--color-danger-light)55; }
-        .tc-items-popover { width: 100%; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; margin-top: -4px; box-shadow: var(--shadow-sm); }
-        .tc-items-header { padding: var(--space-2) var(--space-3); font-size: 11px; font-weight: 600; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); }
-        .tc-item-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: var(--space-2) var(--space-3); font-size: 12.5px; color: var(--color-text-primary); text-align: left; border-bottom: 1px solid var(--color-border-subtle); transition: background var(--transition-fast); }
-        .tc-item-row:last-child { border-bottom: none; }
-        .tc-item-row:hover { background: var(--color-bg-secondary); }
-        .tc-item-type { font-size: 11px; color: var(--color-text-muted); text-transform: capitalize; }
-      `}</style>
     </>
   );
 }

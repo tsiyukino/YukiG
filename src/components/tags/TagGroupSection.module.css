@@ -1,0 +1,168 @@
+.gs {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  min-height: 44px;
+}
+
+.dragHandle {
+  color: var(--color-text-muted);
+  cursor: grab;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
+}
+
+.header:hover .dragHandle {
+  opacity: 1;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.prefix {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.count {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.editRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.editInput {
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  background: var(--color-bg);
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  transition: border-color var(--transition-fast);
+}
+
+.editInput:focus {
+  border-color: var(--color-accent);
+}
+
+.editPrefix {
+  flex: 0 0 120px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.iconBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.confirmBtn:hover {
+  color: var(--color-success);
+  background: var(--color-bg-tertiary);
+}
+
+.dangerBtn:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.tags {
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 52px;
+}
+
+.tagWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tagDrag {
+  display: inline-flex;
+  cursor: grab;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.tagDragging {
+  opacity: 0.35;
+}
+
+.tagSlot {
+  display: inline-flex;
+  width: 60px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  border: 2px dashed var(--color-accent);
+  background: var(--color-accent-light);
+  animation: slot-appear var(--duration-fast) var(--ease-out);
+}
+
+@keyframes slot-appear {
+  from {
+    opacity: 0;
+    width: 0;
+  }
+  to {
+    opacity: 1;
+    width: 60px;
+  }
+}

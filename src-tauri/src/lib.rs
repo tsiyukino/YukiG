@@ -3,6 +3,7 @@ pub mod db;
 pub mod errors;
 pub mod services;
 pub mod strategies;
+pub mod tray;
 
 use commands::collection_commands::*;
 use commands::game_status_commands::*;
@@ -14,14 +15,12 @@ use commands::settings_commands::*;
 use commands::strategy_commands::*;
 use commands::tag_commands::*;
 use commands::thumbnail_commands::*;
+use commands::tray_commands::*;
 use commands::game_suggest_commands::*;
 use commands::icon_commands::*;
 use commands::steam_commands::*;
 use commands::watcher_commands::*;
 use strategies::StrategyRegistry;
-use tauri::image::Image;
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder};
 
 /// Builds and returns the Tauri application.
@@ -44,38 +43,20 @@ pub fn run() {
             let watcher_state = services::file_watcher::WatcherState::new();
             app.manage(watcher_state);
 
-            // Build tray icon with a right-click menu.
-            let open_item = MenuItem::with_id(app, "open", "Open YukiG", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open_item, &quit_item])?;
+            let session_registry = services::session_registry::SessionRegistry::new();
+            app.manage(session_registry);
 
-            let icon = Image::from_path(
-                app.path().resource_dir()?.join("icons/icon.png"),
-            )
-            .unwrap_or_else(|_| app.default_window_icon().cloned().unwrap());
+            // Holds the app id Steam is currently running; must be managed
+            // before the watcher spawns since the watcher writes to it.
+            app.manage(services::steam_running::SteamRunningState::new());
 
-            TrayIconBuilder::new()
-                .icon(icon)
-                .tooltip("YukiG")
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "open" => show_or_create_window(app),
-                    "quit" => app.exit(0),
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    // Left-click on the tray icon opens / focuses the window.
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        show_or_create_window(tray.app_handle());
-                    }
-                })
-                .build(app)?;
+            // Mirror Steam's running-game state into the session registry so
+            // "now playing" badges cover Steam games YukiG did not launch.
+            services::steam_running::spawn(app.handle().clone());
+
+            // Tray icon with the dynamic recent-games menu. Must come after
+            // the database is managed — the menu queries recently played games.
+            tray::init(app)?;
 
             // Restore saved window size and position, then wire up persistence.
             if let Ok(config_dir) = app.path().app_config_dir() {
@@ -161,7 +142,6 @@ pub fn run() {
             strategy_get_display_items,
             strategy_get_launch_action,
             strategy_get_metadata_schema,
-            strategy_execute_launch,
             strategy_execute_launch_tracked,
             strategy_get_playtime_bulk,
             strategy_get_metadata,
@@ -193,6 +173,7 @@ pub fn run() {
             steam_sync,
             steam_import,
             steam_get_imported_ids,
+            steam_get_running_appid,
             steam_get_game_db_info,
             steam_get_users,
             steam_switch_account,
@@ -210,12 +191,20 @@ pub fn run() {
             session_start,
             session_end,
             session_get_by_item,
+            session_get_active,
             // Game status commands
             game_status_get,
             game_status_set,
             game_status_get_all,
             game_status_get_bulk,
             game_status_bulk_init,
+            // Tray menu commands
+            tray_get_recent_games,
+            tray_launch_item,
+            tray_menu_present,
+            tray_menu_hide,
+            tray_open_main,
+            tray_quit,
         ])
         .on_window_event(|window, event| {
             // When the user closes the window, check the minimize_to_tray setting.
@@ -281,7 +270,7 @@ fn save_window_state(app: &AppHandle) {
 /// Tauri v2 hides the window on close (we intercept CloseRequested).
 /// This function simply un-hides and focuses it. If for any reason the
 /// window label is gone, it creates a new one.
-fn show_or_create_window(app: &AppHandle) {
+pub(crate) fn show_or_create_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.set_focus();

@@ -54,3 +54,29 @@ The hash paths are stored in `appinfo.vdf` under `common → library_assets_full
 **Fix**: `services/steam.rs` now parses these nested tables from `appinfo.vdf` and constructs Akamai URLs when hash paths are present, falling back to the legacy CDN for older games. `library_hero.jpg` is still reliably available at the flat path for all games.
 
 Note: `icon_url` (community icon, `common → "icon"` hash) is unaffected — it uses a separate CDN path that is not content-addressed and works for all games.
+
+### Component styles bleed between pages (class name collisions)
+**Root cause**: before the 2026-07 redesign, pages injected `<style>` blocks with global class names. Once any stylesheet is statically bundled (Vite extracts all imported CSS into one file), same-named classes from different features collide — e.g. SettingsPage and the steam feature both defined `.sp-btn` / `.sp-tab`, so whichever rule came later in the bundle won.
+
+**Fix / prevention**: all components use CSS Modules now (scoped names, collisions impossible). The one remaining global sheet is `src/components/steam/steam.css` (`sp-*` / `sdt-*` prefixes) — do not reuse those prefixes anywhere else, and move classes into modules when reworking steam components.
+
+### CSS module class typos fail silently
+`styles.someTypo` compiles fine and renders `undefined` as the class name — TypeScript does not validate CSS module keys. If a component suddenly loses styling after a rename, diff the module file's class names against the `styles.*` references first.
+
+### Launching Mod Organizer 2 from YukiG breaks SKSE / modded games misbehave
+**Root cause**: playtime tracking used to spawn the exe inside a Windows Job Object (`CREATE_SUSPENDED` + `AssignProcessToJobObject`). Job membership is inherited by everything MO2 spawns — skse64_loader, the game, usvfs proxy processes — and the job was created without breakaway permissions, so any child calling `CreateProcess` with `CREATE_BREAKAWAY_FROM_JOB` failed with Access Denied; hook-based launchers are generally sensitive to running inside a foreign job. Additionally, neither launch path set a working directory, so children inherited YukiG's own cwd and resolved DLLs/INIs relative to the wrong folder.
+
+**Fix**: `strategy_execute_launch_tracked` now spawns the game as a plain detached process with the working directory set to the exe's folder, and measures the session with `services/process_tracker.rs` — passive process-table polling that follows parent-PID links (creation-time checks guard against PID reuse). Nothing is injected or inherited, so launch behavior is identical to double-clicking the exe.
+
+**Known limitation**: if a launcher starts the game through an *already-running* third process (e.g. MO2 configured to launch via `steam://`), the parent chain breaks and the session ends when the launcher exits. Directly spawned chains (MO2 → skse64_loader → game) track correctly.
+
+### Game exe_path silently changes after playing (e.g. ModOrganizer.exe → helper.exe)
+**Symptom**: after launching a game (especially through Mod Organizer 2) a few times, its configured executable flips to a different `.exe` in the same folder and the game no longer launches. Previously only fixable by deleting and re-adding the item.
+
+**Root cause**: `GameItemView` called `rescan()` after every launch to refresh playtime. A rescan runs `GameStrategy::scan`, which picks the **first `.exe` by directory order** as `exe_path`, and the scan result was persisted with `upsert_all` — overwriting the user's choice. MO2 generates `helper.exe` at runtime; it sorts before `ModOrganizer.exe` (`h` < `M`), so once it lands on disk every rescan replaced the launch target.
+
+**Fix** (two layers):
+1. `GameItemView` now calls `refresh()` (re-reads metadata only) instead of `rescan()` after launch — a launch never re-scans the filesystem. See `useStrategy`'s `refresh` vs `rescan`.
+2. `strategy_scan` persists via `strategy_metadata_queries::insert_missing` (`ON CONFLICT DO NOTHING`) instead of `upsert_all`, so even an explicit manual rescan fills only absent keys and never clobbers a user-set `exe_path`.
+
+**Recovering an already-broken item**: open the game's detail page and set the executable back to the correct exe once. It will no longer change.

@@ -1,0 +1,86 @@
+.outer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.page {
+  width: 100%;
+  flex: 1;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 40vh;
+  text-align: center;
+}
+
+.errorMsg {
+  font-size: var(--text-base);
+  color: var(--color-danger);
+}
+
+.retry {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.retry:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.loadingPad {
+  padding: var(--space-6);
+  width: 100%;
+}
+
+/* Root drop zone — shown when dragging an item out of a folder/group */
+.rootDrop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast);
+  animation: root-drop-appear var(--duration-fast) var(--ease-out);
+}
+
+@keyframes root-drop-appear {
+  from {
+    opacity: 0;
+    transform: scaleY(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.rootDropActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}

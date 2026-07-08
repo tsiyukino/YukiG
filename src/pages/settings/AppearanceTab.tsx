@@ -7,6 +7,7 @@ import { Palette } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAppPrefs } from "@/hooks/useAppPrefs";
 import { SettingsSection, SettingsRow, Toggle } from "./SettingsControls";
+import s from "./settings.module.css";
 
 const ACCENT_PRESETS = [
   { color: "#6366f1", label: "Indigo"  },
@@ -43,17 +44,17 @@ export default function AppearanceTab() {
           label="Color"
           description="Used for active nav links, toggles, buttons, and interactive highlights throughout the app."
         >
-          <div className="sp-accent-swatches">
+          <div className={s.accentSwatches}>
             {ACCENT_PRESETS.map(({ color, label }) => (
               <button
                 key={color}
-                className={`sp-swatch ${prefs.accentColor === color ? "sp-swatch--active" : ""}`}
+                className={prefs.accentColor === color ? `${s.swatch} ${s.swatchActive}` : s.swatch}
                 style={{ background: color }}
                 title={label}
                 onClick={() => setPrefs({ accentColor: color })}
               />
             ))}
-            <label className="sp-swatch sp-swatch--custom" title="Custom color">
+            <label className={`${s.swatch} ${s.swatchCustom}`} title="Custom color">
               <input
                 type="color"
                 value={prefs.accentColor}

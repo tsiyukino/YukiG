@@ -7,8 +7,7 @@
  */
 import { useState, useRef, useEffect } from "react";
 import {
-  RefreshCw, AlertCircle, Gamepad2, Search, LayoutGrid, List,
-  PanelLeftClose, PanelLeftOpen, X,
+  RefreshCw, AlertCircle, Gamepad2, Search, LayoutGrid, List, X,
 } from "lucide-react";
 import {
   steamLaunchGame, steamInstallGame, itemSetFavorite, SteamGameDbInfo,
@@ -18,6 +17,8 @@ import { CollectionGroup } from "@/utils/steamFormatters";
 import GameCard from "./GameCard";
 import GameRow from "./GameRow";
 import DetailDrawer from "./DetailDrawer";
+import LibrarySidebar from "./LibrarySidebar";
+import { useSteamRunningApp } from "@/hooks/useSteamRunningApp";
 
 /** View mode for the games panel. */
 type ViewMode = "grid" | "list";
@@ -41,12 +42,28 @@ interface LibraryTabProps {
   openItemId?: string | null;
 }
 
+/** Full-screen status placeholder (scanning / error / empty). */
+function StateScreen({ icon, title, sub, spin, error }: {
+  icon: React.ReactNode; title: string; sub: string; spin?: boolean; error?: boolean;
+}) {
+  return (
+    <div className="sp-state-screen">
+      <div className={`sp-state-icon ${spin ? "sp-state-icon--spin" : ""} ${error ? "sp-state-icon--error" : ""}`}>
+        {icon}
+      </div>
+      <p className="sp-state-title">{title}</p>
+      <p className="sp-state-sub">{sub}</p>
+    </div>
+  );
+}
+
 /**
  * Steam library tab with sidebar collections, game grid/list, and detail drawer.
  * Auto-selects the first collection on load and can auto-open a drawer for a
  * specific game when navigated from the home page favorites.
  */
 export default function LibraryTab({ scanning, groups, scanError, scanResult, gameDbInfo, onSeeDetails, onFavoriteChanged, openItemId }: LibraryTabProps) {
+  const runningAppId = useSteamRunningApp();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [detail, setDetail] = useState<SteamGame | null>(null);
   const [launching, setLaunching] = useState(false);
@@ -105,144 +122,37 @@ export default function LibraryTab({ scanning, groups, scanError, scanResult, ga
   }
 
   if (scanning) {
-    return (
-      <div className="sp-state-screen">
-        <div className="sp-state-icon sp-state-icon--spin">
-          <RefreshCw size={22} />
-        </div>
-        <p className="sp-state-title">Scanning Steam library…</p>
-        <p className="sp-state-sub">Reading your game data from disk</p>
-      </div>
-    );
+    return <StateScreen icon={<RefreshCw size={22} />} spin
+      title="Scanning Steam library…" sub="Reading your game data from disk" />;
   }
-
   if (scanError && !scanResult) {
-    return (
-      <div className="sp-state-screen">
-        <div className="sp-state-icon sp-state-icon--error">
-          <AlertCircle size={22} />
-        </div>
-        <p className="sp-state-title">Could not read Steam library</p>
-        <p className="sp-state-sub">Make sure Steam is installed and has been run at least once.</p>
-      </div>
-    );
+    return <StateScreen icon={<AlertCircle size={22} />} error
+      title="Could not read Steam library" sub="Make sure Steam is installed and has been run at least once." />;
   }
-
   if (groups.length === 0 && scanResult) {
-    return (
-      <div className="sp-state-screen">
-        <div className="sp-state-icon">
-          <Gamepad2 size={22} />
-        </div>
-        <p className="sp-state-title">No games found</p>
-        <p className="sp-state-sub">Make sure Steam is installed and has been run at least once.</p>
-      </div>
-    );
+    return <StateScreen icon={<Gamepad2 size={22} />}
+      title="No games found" sub="Make sure Steam is installed and has been run at least once." />;
   }
 
   const currentGroup = groups.find((g) => g.name === selectedGroup) ?? null;
   const filteredGames = currentGroup
-    ? currentGroup.games.filter((g) =>
-        g.name.toLowerCase().includes(search.toLowerCase())
-      )
+    ? currentGroup.games.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
     : [];
 
-  const totalInstalled = scanResult?.games.filter((g) => g.is_installed).length ?? 0;
-  const totalGames = scanResult?.games.length ?? 0;
   const hasDrawer = detail !== null;
 
   return (
     <div className="sp-library">
-      {/* ── Sidebar ── */}
-      <aside className={`sp-sidebar ${sidebarCollapsed ? "sp-sidebar--collapsed" : ""}`}>
-        <div className="sp-sidebar-header">
-          {!sidebarCollapsed && (
-            <>
-              <span className="sp-sidebar-label">Collections</span>
-              <span className="sp-sidebar-count">{groups.length}</span>
-            </>
-          )}
-          <button
-            className="sp-sidebar-toggle"
-            onClick={() => setSidebarCollapsed((v) => !v)}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {sidebarCollapsed
-              ? <PanelLeftOpen size={14} />
-              : <PanelLeftClose size={14} />
-            }
-          </button>
-        </div>
-        <nav className="sp-sidebar-nav">
-          {groups.map((g) => {
-            const installedCount = g.games.filter((x) => x.is_installed).length;
-            const firstLogoImg = g.games.find((x) => x.icon_url)?.icon_url ?? null;
-            const isActive = selectedGroup === g.name;
-            return (
-              <button
-                key={g.name}
-                className={`sp-sidebar-item ${isActive ? "sp-sidebar-item--active" : ""}`}
-                onClick={() => { setSelectedGroup(g.name); setDetail(null); setSearch(""); }}
-                title={sidebarCollapsed ? g.name : undefined}
-              >
-                {/* Collapsed: small square with logo; expanded: logo on dark background */}
-                {sidebarCollapsed ? (
-                  <div className="sp-sidebar-mosaic sp-sidebar-mosaic--icon">
-                    {firstLogoImg ? (
-                      <img
-                        src={firstLogoImg}
-                        alt=""
-                        className="sp-sidebar-mosaic-img-logo"
-                        loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                    ) : (
-                      <Gamepad2 size={12} />
-                    )}
-                  </div>
-                ) : (
-                  <div className="sp-sidebar-item-inner">
-                    <div className="sp-sidebar-logo-thumb">
-                      {firstLogoImg ? (
-                        <img
-                          src={firstLogoImg}
-                          alt=""
-                          className="sp-sidebar-logo-thumb-img"
-                          loading="lazy"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      ) : (
-                        <Gamepad2 size={12} />
-                      )}
-                    </div>
-                    <div className="sp-sidebar-item-info">
-                      <span className="sp-sidebar-item-name">{g.name}</span>
-                      <span className="sp-sidebar-item-meta">{installedCount}/{g.games.length}</span>
-                    </div>
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+      <LibrarySidebar
+        groups={groups}
+        selectedGroup={selectedGroup}
+        onSelect={(name) => { setSelectedGroup(name); setDetail(null); setSearch(""); }}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+        totalInstalled={scanResult?.games.filter((g) => g.is_installed).length ?? 0}
+        totalGames={scanResult?.games.length ?? 0}
+      />
 
-        {/* Stats footer */}
-        {!sidebarCollapsed && (
-          <div className="sp-sidebar-footer">
-            <div className="sp-sidebar-stat">
-              <span className="sp-sidebar-stat-val">{totalInstalled}</span>
-              <span className="sp-sidebar-stat-label">installed</span>
-            </div>
-            <div className="sp-sidebar-stat-divider" />
-            <div className="sp-sidebar-stat">
-              <span className="sp-sidebar-stat-val">{totalGames}</span>
-              <span className="sp-sidebar-stat-label">total</span>
-            </div>
-          </div>
-        )}
-      </aside>
-
-      {/* ── Main panel ── */}
       {/* Clicking the main panel background (not a game card) closes the drawer */}
       <main className="sp-main" onClick={detail ? () => setDetail(null) : undefined}>
         {launchError && (
@@ -257,7 +167,6 @@ export default function LibraryTab({ scanning, groups, scanError, scanResult, ga
 
         {currentGroup && (
           <>
-            {/* Main panel toolbar */}
             <div className="sp-main-toolbar">
               <div className="sp-main-toolbar-left">
                 <h2 className="sp-main-title">{currentGroup.name}</h2>
@@ -299,7 +208,6 @@ export default function LibraryTab({ scanning, groups, scanError, scanResult, ga
               </div>
             </div>
 
-            {/* Games */}
             {filteredGames.length === 0 ? (
               <div className="sp-empty">
                 <Search size={20} />
@@ -313,6 +221,7 @@ export default function LibraryTab({ scanning, groups, scanError, scanResult, ga
                     game={game}
                     isSelected={detail?.app_id === game.app_id}
                     isFavorite={gameDbInfo[game.app_id]?.is_favorite ?? false}
+                    isPlaying={runningAppId === game.app_id}
                     eager={i < 20}
                     onOpen={(e) => { e.stopPropagation(); setDetail(detail?.app_id === game.app_id ? null : game); }}
                   />
@@ -326,6 +235,7 @@ export default function LibraryTab({ scanning, groups, scanError, scanResult, ga
                     game={game}
                     isSelected={detail?.app_id === game.app_id}
                     isFavorite={gameDbInfo[game.app_id]?.is_favorite ?? false}
+                    isPlaying={runningAppId === game.app_id}
                     eager={i < 30}
                     onOpen={(e) => { e.stopPropagation(); setDetail(detail?.app_id === game.app_id ? null : game); }}
                   />
@@ -336,7 +246,6 @@ export default function LibraryTab({ scanning, groups, scanError, scanResult, ga
         )}
       </main>
 
-      {/* ── Detail drawer ── */}
       {detail && (
         <DetailDrawer
           game={detail}

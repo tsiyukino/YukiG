@@ -17,3 +17,4 @@ export * from "./commands/tags";
 export * from "./commands/strategy";
 export * from "./commands/steam";
 export * from "./commands/system";
+export * from "./commands/tray";

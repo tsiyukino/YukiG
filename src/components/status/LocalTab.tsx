@@ -7,6 +7,7 @@ import { Tag as TagType } from "@/types/tag";
 import StatTile from "@/components/status/StatTile";
 import PlaytimeRow from "@/components/status/PlaytimeRow";
 import CollectionRow from "@/components/status/CollectionRow";
+import s from "./status.module.css";
 
 interface LocalItem extends Item {
   playtime_seconds: number;
@@ -53,8 +54,8 @@ export default function LocalTab({ db }: LocalTabProps) {
   const maxPlaytime = topLocal[0]?.playtime_minutes ?? 1;
 
   return (
-    <div className="stp-tab-body">
-      <div className="stp-grid-4">
+    <div className={s.tabBody}>
+      <div className={s.grid4}>
         <StatTile icon={<Layers size={15} />} label="Collections"
           value={db.userCollections.length} accent="#6366f1" />
         <StatTile icon={<Gamepad2 size={15} />} label="Games"
@@ -66,14 +67,14 @@ export default function LocalTab({ db }: LocalTabProps) {
       </div>
 
       {db.collectionBreakdown.length === 0 ? (
-        <div className="stp-empty-state">
+        <div className={s.emptyState}>
           <Layers size={28} strokeWidth={1.5} color="var(--color-text-muted)" />
           <p>No collections yet. Create one from the Games page.</p>
         </div>
       ) : (
-        <div className="stp-card">
-          <div className="stp-card-header"><Layers size={13} /><span>Collections</span></div>
-          <div className="stp-coll-list">
+        <div className={s.card}>
+          <div className={s.cardHeader}><Layers size={13} /><span>Collections</span></div>
+          <div className={s.collList}>
             {db.collectionBreakdown.map(({ collection, items }) => (
               <CollectionRow
                 key={collection.id}
@@ -88,9 +89,9 @@ export default function LocalTab({ db }: LocalTabProps) {
       )}
 
       {topLocal.length > 0 && (
-        <div className="stp-card">
-          <div className="stp-card-header"><TrendingUp size={13} /><span>Top Played</span></div>
-          <div className="stp-pt-list">
+        <div className={s.card}>
+          <div className={s.cardHeader}><TrendingUp size={13} /><span>Top Played</span></div>
+          <div className={s.ptList}>
             {topLocal.map((item, i) => (
               <PlaytimeRow
                 key={item.id}
@@ -102,21 +103,21 @@ export default function LocalTab({ db }: LocalTabProps) {
               />
             ))}
           </div>
-          <p className="stp-card-note">Playtime is recorded when games are launched through YukiG.</p>
+          <p className={s.cardNote}>Playtime is recorded when games are launched through YukiG.</p>
         </div>
       )}
 
       {/* Tags */}
       {db.tagBreakdown.length > 0 && (
-        <div className="stp-card">
-          <div className="stp-card-header"><Tag size={13} /><span>Tags</span><span className="stp-card-meta">{db.tagBreakdown.length} total</span></div>
-          <div className="stp-tags-wrap">
+        <div className={s.card}>
+          <div className={s.cardHeader}><Tag size={13} /><span>Tags</span><span className={s.cardMeta}>{db.tagBreakdown.length} total</span></div>
+          <div className={s.tagsWrap}>
             {db.tagBreakdown.map(({ tag, count }) => (
-              <div key={tag.id} className="stp-tag"
+              <div key={tag.id} className={s.tag}
                 style={{ borderColor: `${tag.color}55`, background: `${tag.color}10` }}>
-                <span className="stp-tag-dot" style={{ background: tag.color }} />
-                <span className="stp-tag-name">{tag.name}</span>
-                {count > 0 && <span className="stp-tag-count" style={{ color: tag.color }}>{count}</span>}
+                <span className={s.tagDot} style={{ background: tag.color }} />
+                <span className={s.tagName}>{tag.name}</span>
+                {count > 0 && <span className={s.tagCount} style={{ color: tag.color }}>{count}</span>}
               </div>
             ))}
           </div>

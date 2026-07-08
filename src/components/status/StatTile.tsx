@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import s from "./status.module.css";
 
 /** @internal Animates a numeric value from 0 to the target over `duration` ms. */
 function useCountUp(value: number, duration = 700): number {
@@ -52,13 +53,13 @@ export default function StatTile({ icon, label, value, sub, accent, delay = 0 }:
   const display = numeric >= 0 ? counted.toLocaleString() : (value as string);
 
   return (
-    <div className="stp-tile" style={{ animationDelay: `${delay}ms` }}>
-      <div className="stp-tile-bar" style={{ background: accent }} />
-      <div className="stp-tile-icon" style={{ color: accent, background: `${accent}18` }}>{icon}</div>
-      <div className="stp-tile-body">
-        <span className="stp-tile-value">{display}</span>
-        <span className="stp-tile-label">{label}</span>
-        {sub && <span className="stp-tile-sub">{sub}</span>}
+    <div className={s.tile} style={{ animationDelay: `${delay}ms` }}>
+      <div className={s.tileBar} style={{ background: accent }} />
+      <div className={s.tileIcon} style={{ color: accent, background: `${accent}18` }}>{icon}</div>
+      <div className={s.tileBody}>
+        <span className={s.tileValue}>{display}</span>
+        <span className={s.tileLabel}>{label}</span>
+        {sub && <span className={s.tileSub}>{sub}</span>}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ use tauri::State;
 
 use crate::db::connection::DbConnection;
 use crate::db::queries::strategy_metadata_queries;
+use crate::services::launcher;
 use crate::strategies::{DisplayItem, LaunchAction, MetadataField, ScanResult, StrategyRegistry};
 
 /// Returns all registered strategy types, their display names, and their group.
@@ -40,8 +41,13 @@ pub fn strategy_list(registry: State<StrategyRegistry>) -> Vec<HashMap<String, S
 
 /// Runs the strategy scan for the given folder path and returns the result.
 ///
-/// Also persists the scan metadata to the database for the given item.
-/// Called after the user manually triggers a rescan from the item detail view.
+/// Persists auto-detected metadata **non-destructively**: keys the item
+/// already has (which may be user-set, e.g. an explicit `exe_path`) are kept;
+/// only absent keys are filled in. This prevents a rescan from replacing the
+/// chosen launch target when the folder gains a new `.exe` — notably Mod
+/// Organizer's `helper.exe`, which sorts before `ModOrganizer.exe`.
+///
+/// Called when the user manually triggers a rescan from the item detail view.
 ///
 /// # Errors
 /// Returns an error string if the strategy is unknown, path is invalid, or DB write fails.
@@ -57,7 +63,7 @@ pub fn strategy_scan(
     let result = strategy.scan(Path::new(&folder_path)).map_err(|e| e.to_string())?;
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    strategy_metadata_queries::upsert_all(&conn, &item_id, &result.metadata)
+    strategy_metadata_queries::insert_missing(&conn, &item_id, &result.metadata)
         .map_err(|e| e.to_string())?;
 
     Ok(result)
@@ -114,245 +120,23 @@ pub fn strategy_get_metadata_schema(
     Ok(strategy.metadata_schema())
 }
 
-/// Executes the launch action for an item.
+/// Executes the launch action for an item and tracks playtime by passively
+/// watching the spawned process tree. Returns the session length in seconds.
 ///
-/// For `run_exe` actions, spawns the executable as a detached child process so
-/// the game runs independently of YukiFileManager. For `open_with_default` actions,
-/// opens the path with the system default application via the opener plugin.
-///
-/// Using the Rust backend for launch avoids the need for shell plugin allowlist
-/// entries — the exe path is already trusted since the user chose the folder.
+/// Thin wrapper around `services::launcher::launch_tracked` (see there for
+/// the tracking semantics).
 ///
 /// # Errors
-/// Returns an error string if the strategy is unknown, metadata fetch fails,
-/// there is no launch action, or the process could not be spawned.
-#[tauri::command]
-pub fn strategy_execute_launch(
-    db: State<DbConnection>,
-    registry: State<StrategyRegistry>,
-    app: tauri::AppHandle,
-    item_id: String,
-    folder_path: String,
-    strategy_type: String,
-) -> Result<(), String> {
-    use tauri_plugin_opener::OpenerExt;
-
-    let strategy = registry.get(&strategy_type).map_err(|e| e.to_string())?;
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
-    let metadata = strategy_metadata_queries::get_by_item(&conn, &item_id)
-        .map_err(|e| e.to_string())?;
-
-    let action = strategy
-        .get_launch_action(Path::new(&folder_path), &metadata)
-        .ok_or_else(|| "No launch action available for this item.".to_string())?;
-
-    match action.action_type.as_str() {
-        "run_exe" => {
-            std::process::Command::new(&action.target_path)
-                .spawn()
-                .map_err(|e| format!("Failed to launch '{}': {}", action.target_path, e))?;
-        }
-        "open_with_default" => {
-            app.opener()
-                .open_path(&action.target_path, None::<&str>)
-                .map_err(|e| e.to_string())?;
-        }
-        other => {
-            return Err(format!("Unknown action type: {}", other));
-        }
-    }
-
-    Ok(())
-}
-
-/// Executes the launch action for an item and tracks playtime via a Job Object.
-///
-/// Runs the blocking wait on a dedicated thread via `spawn_blocking` so the
-/// Tauri async executor and UI remain responsive while the game is running.
-///
-/// Playtime is stored in two metadata keys:
-/// - `total_playtime_seconds`: cumulative seconds across all sessions (authoritative)
-/// - `total_playtime_minutes`: derived from seconds, for display
-/// - `last_launched`: Unix timestamp (seconds) of this launch
-///
-/// # Errors
-/// Returns an error string if the strategy is unknown, metadata fetch fails,
-/// there is no launch action, or the process could not be spawned.
+/// Returns an error string if the item or strategy is unknown, there is no
+/// launch action, or the process could not be spawned.
 #[tauri::command]
 pub async fn strategy_execute_launch_tracked(
-    db: State<'_, DbConnection>,
-    registry: State<'_, StrategyRegistry>,
     app: tauri::AppHandle,
     item_id: String,
-    folder_path: String,
-    strategy_type: String,
 ) -> Result<u64, String> {
-    use tauri_plugin_opener::OpenerExt;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let strategy = registry.get(&strategy_type).map_err(|e| e.to_string())?;
-    let action = {
-        let conn = db.0.lock().map_err(|e| e.to_string())?;
-        let metadata = strategy_metadata_queries::get_by_item(&conn, &item_id)
-            .map_err(|e| e.to_string())?;
-        strategy
-            .get_launch_action(Path::new(&folder_path), &metadata)
-            .ok_or_else(|| "No launch action available for this item.".to_string())?
-    };
-    // DB lock released here before the blocking wait begins.
-
-    let now_secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-
-    let session_secs: u64 = match action.action_type.as_str() {
-        "run_exe" => {
-            let target = action.target_path.clone();
-            // Offload the blocking process-tree wait to a dedicated OS thread.
-            tokio::task::spawn_blocking(move || -> Result<u64, String> {
-                #[cfg(target_os = "windows")]
-                { wait_for_process_tree_windows(&target) }
-                #[cfg(not(target_os = "windows"))]
-                {
-                    let mut child = std::process::Command::new(&target)
-                        .spawn()
-                        .map_err(|e| format!("Failed to launch '{}': {}", target, e))?;
-                    let start = std::time::Instant::now();
-                    let _ = child.wait();
-                    Ok(start.elapsed().as_secs())
-                }
-            })
-            .await
-            .map_err(|e: tokio::task::JoinError| e.to_string())??
-        }
-        "open_with_default" => {
-            app.opener()
-                .open_path(&action.target_path, None::<&str>)
-                .map_err(|e| e.to_string())?;
-            0
-        }
-        other => return Err(format!("Unknown action type: {}", other)),
-    };
-
-    // Re-acquire lock to persist results.
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
-    let prev = strategy_metadata_queries::get_by_item(&conn, &item_id).unwrap_or_default();
-
-    let prev_secs: u64 = prev
-        .get("total_playtime_seconds")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or_else(|| {
-            prev.get("total_playtime_minutes")
-                .and_then(|v| v.parse::<u64>().ok())
-                .unwrap_or(0) * 60
-        });
-
-    let new_total_secs = prev_secs + session_secs;
-    let new_total_mins = new_total_secs / 60;
-
-    let mut updates = HashMap::new();
-    updates.insert("total_playtime_seconds".to_string(), new_total_secs.to_string());
-    updates.insert("total_playtime_minutes".to_string(), new_total_mins.to_string());
-    updates.insert("last_launched".to_string(), now_secs.to_string());
-    strategy_metadata_queries::upsert_all(&conn, &item_id, &updates)
-        .map_err(|e| e.to_string())?;
-
-    Ok(session_secs)
-}
-
-/// Spawns an exe inside a Windows Job Object and blocks until every process in
-/// the job tree has exited. Returns the elapsed wall-clock seconds.
-///
-/// Uses `CreateProcessW` with `CREATE_SUSPENDED` so the process is in the job
-/// before its first instruction runs, then resumes via `ResumeThread`. After the
-/// direct child exits, polls `QueryInformationJobObject` every 500 ms until
-/// `ActiveProcesses == 0`. This handles launcher stubs that spawn the real game
-/// and exit immediately.
-#[cfg(target_os = "windows")]
-fn wait_for_process_tree_windows(exe_path: &str) -> Result<u64, String> {
-    use std::time::Instant;
-    use windows::core::PWSTR;
-    use windows::Win32::Foundation::CloseHandle;
-    use windows::Win32::System::JobObjects::{
-        AssignProcessToJobObject, CreateJobObjectW,
-        JobObjectBasicAccountingInformation,
-        JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
-        QueryInformationJobObject,
-    };
-    use windows::Win32::System::Threading::{
-        CreateProcessW, ResumeThread, WaitForSingleObject,
-        PROCESS_INFORMATION, STARTUPINFOW,
-        CREATE_SUSPENDED, INFINITE,
-    };
-
-    let job = unsafe { CreateJobObjectW(None, None) }
-        .map_err(|e| format!("CreateJobObjectW failed: {}", e))?;
-
-    let mut exe_wide: Vec<u16> = exe_path.encode_utf16().chain(std::iter::once(0)).collect();
-    let mut si = STARTUPINFOW {
-        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
-        ..Default::default()
-    };
-    let mut pi = PROCESS_INFORMATION::default();
-
-    let spawn_result = unsafe {
-        CreateProcessW(
-            None,
-            Some(PWSTR(exe_wide.as_mut_ptr())),
-            None,
-            None,
-            false,
-            CREATE_SUSPENDED,
-            None,
-            None,
-            &mut si,
-            &mut pi,
-        )
-    };
-
-    if let Err(e) = spawn_result {
-        unsafe { CloseHandle(job).ok() };
-        return Err(format!("CreateProcessW failed: {}", e));
-    }
-
-    let start = Instant::now();
-
-    if let Err(e) = unsafe { AssignProcessToJobObject(job, pi.hProcess) } {
-        unsafe {
-            windows::Win32::System::Threading::TerminateProcess(pi.hProcess, 1).ok();
-            CloseHandle(pi.hProcess).ok();
-            CloseHandle(pi.hThread).ok();
-            CloseHandle(job).ok();
-        }
-        return Err(format!("AssignProcessToJobObject failed: {}", e));
-    }
-
-    // Resume the primary thread now that it's safely in the job.
-    unsafe { ResumeThread(pi.hThread) };
-    unsafe { CloseHandle(pi.hThread).ok() };
-
-    // Wait for the direct child to exit, then poll for grandchildren.
-    unsafe { WaitForSingleObject(pi.hProcess, INFINITE) };
-    unsafe { CloseHandle(pi.hProcess).ok() };
-
-    loop {
-        let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
-        let ok = unsafe {
-            QueryInformationJobObject(
-                Some(job),
-                JobObjectBasicAccountingInformation,
-                &mut info as *mut _ as *mut std::ffi::c_void,
-                std::mem::size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32,
-                None,
-            )
-        };
-        if ok.is_err() || info.ActiveProcesses == 0 { break; }
-        std::thread::sleep(std::time::Duration::from_millis(500));
-    }
-
-    unsafe { CloseHandle(job).ok() };
-    Ok(start.elapsed().as_secs())
+    launcher::launch_tracked(app, item_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Returns playtime summary for all items in a collection.

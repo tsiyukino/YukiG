@@ -2,12 +2,13 @@
  * Global keyboard shortcut handler.
  *
  * Shortcuts registered here:
- * - `/` — focus the header search input (when no text field is focused)
- * - `Escape` — blur the currently focused element (dismisses dropdowns/search)
+ * - `/` — open the Search page (when no text field is focused)
+ * - `Escape` — blur the currently focused element (dismisses dropdowns)
  *
- * Attach this hook once in App.tsx or AppShell.tsx.
+ * Attach this hook once inside the Router context (AppShell).
  */
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 /** Returns true if the event target is a text input that should receive the key. */
 function isTextInput(el: EventTarget | null): boolean {
@@ -21,22 +22,19 @@ function isTextInput(el: EventTarget | null): boolean {
   );
 }
 
-/** Finds the header search input by its class name. */
-function getSearchInput(): HTMLInputElement | null {
-  return document.querySelector<HTMLInputElement>(".titlebar-search-input");
-}
-
 export function useKeyboardShortcuts() {
+  const navigate = useNavigate();
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // `/` focuses the search bar when no input is active.
+      // `/` opens the Search page when no input is active.
       if (e.key === "/" && !isTextInput(document.activeElement)) {
         e.preventDefault();
-        getSearchInput()?.focus();
+        navigate("/search");
         return;
       }
 
-      // `Escape` blurs the active element (closes search dropdown, etc.).
+      // `Escape` blurs the active element (closes dropdowns, etc.).
       if (e.key === "Escape" && document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
@@ -44,5 +42,5 @@ export function useKeyboardShortcuts() {
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [navigate]);
 }

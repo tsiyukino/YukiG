@@ -400,6 +400,19 @@ pub fn steam_get_imported_ids(db: State<DbConnection>) -> Result<Vec<u64>, Strin
         .map_err(|e| e.to_string())
 }
 
+/// Returns the Steam app id currently running (0 if none).
+///
+/// Read from the `steam_running` watcher's state, which mirrors Steam's
+/// `RunningAppID`. The Steam page seeds "now playing" state from this, then
+/// stays live via the `steam-running-changed` event. Keyed by app id so it
+/// works whether or not the game is imported as a library item.
+#[tauri::command]
+pub fn steam_get_running_appid(
+    state: State<crate::services::steam_running::SteamRunningState>,
+) -> u32 {
+    state.current()
+}
+
 /// Per-game DB info returned by `steam_get_game_db_info`.
 #[derive(Debug, serde::Serialize)]
 pub struct SteamGameDbInfo {
@@ -485,13 +498,16 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
     let scan_ids: std::collections::HashSet<u64> = scan.games.iter().map(|g| g.app_id).collect();
 
     // Build map of existing steam_imports: app_id → item_id.
-    let mut stmt = conn.prepare("SELECT app_id, item_id FROM steam_imports")
-        .map_err(|e| e.to_string())?;
-    let existing_imports: HashMap<u64, String> = stmt
-        .query_map([], |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?)))
-        .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
-        .collect();
+    let existing_imports: HashMap<u64, String> = {
+        let mut stmt = conn.prepare("SELECT app_id, item_id FROM steam_imports")
+            .map_err(|e| e.to_string())?;
+        let imports = stmt
+            .query_map([], |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+        imports
+    };
 
     // Upsert each game from the scan.
     for game in &scan.games {

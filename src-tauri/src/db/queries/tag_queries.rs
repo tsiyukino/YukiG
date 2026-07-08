@@ -41,12 +41,15 @@ pub fn create(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
     )
 }
 
-/// Creates a new mood tag (`tag_type = 'mood'`) and returns it.
-pub fn create_mood(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
+/// Creates a new tag of the given `tag_type` and returns it.
+///
+/// The single typed-creation primitive. `tag_type` is one of `grouping`,
+/// `category`, `functional`, `element`, `mood`, or `regular`.
+pub fn create_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) -> Result<Tag> {
     let id = Uuid::new_v4().to_string();
     conn.execute(
-        "INSERT INTO tags (id, name, color, group_id, tag_type) VALUES (?1, ?2, ?3, NULL, 'mood')",
-        rusqlite::params![&id, name, color],
+        "INSERT INTO tags (id, name, color, group_id, tag_type) VALUES (?1, ?2, ?3, NULL, ?4)",
+        rusqlite::params![&id, name, color, tag_type],
     )?;
     conn.query_row(
         "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
@@ -55,11 +58,12 @@ pub fn create_mood(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
     )
 }
 
-/// Ensures a mood tag with the given name exists; creates it if not found.
+/// Ensures a tag with the given name exists, creating it with `tag_type` if not.
 ///
-/// Returns the existing tag (with its current colour) or the newly created tag.
-/// Used during Steam import/sync to avoid duplicate mood tags across many games.
-pub fn upsert_mood(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
+/// Match is by name only (names are unique), so an existing tag is returned
+/// regardless of its current type. Used by Steam sync to auto-assign category /
+/// functional / mood tags without creating duplicates.
+pub fn upsert_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) -> Result<Tag> {
     let existing = conn.query_row(
         "SELECT id, name, color, group_id, tag_type FROM tags WHERE name = ?1",
         rusqlite::params![name],
@@ -67,26 +71,28 @@ pub fn upsert_mood(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
     );
     match existing {
         Ok(tag) => Ok(tag),
-        Err(rusqlite::Error::QueryReturnedNoRows) => create_mood(conn, name, color),
+        Err(rusqlite::Error::QueryReturnedNoRows) => create_typed(conn, name, color, tag_type),
         Err(e) => Err(e),
     }
 }
 
+/// Creates a new mood tag (`tag_type = 'mood'`) and returns it.
+pub fn create_mood(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
+    create_typed(conn, name, color, "mood")
+}
+
+/// Ensures a mood tag with the given name exists; creates it if not found.
+///
+/// Used during Steam import/sync to avoid duplicate mood tags across many games.
+pub fn upsert_mood(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
+    upsert_typed(conn, name, color, "mood")
+}
+
 /// Ensures a regular tag with the given name exists; creates it if not found.
 ///
-/// Returns the existing tag (with its current colour) or the newly created tag.
 /// Used during Steam import/sync to auto-assign feature tags (Achievements, Steam Cloud, etc.).
 pub fn upsert_regular(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
-    let existing = conn.query_row(
-        "SELECT id, name, color, group_id, tag_type FROM tags WHERE name = ?1",
-        rusqlite::params![name],
-        row_to_tag,
-    );
-    match existing {
-        Ok(tag) => Ok(tag),
-        Err(rusqlite::Error::QueryReturnedNoRows) => create(conn, name, color),
-        Err(e) => Err(e),
-    }
+    upsert_typed(conn, name, color, "regular")
 }
 
 /// Creates a new tag belonging to a group.
@@ -345,4 +351,42 @@ pub fn reorder_tags(conn: &Connection, order: &[(String, i64)]) -> Result<()> {
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn create_typed_sets_the_type() {
+        let conn = test_db();
+        let tag = create_typed(&conn, "ARPG", "#fff", "category").unwrap();
+        assert_eq!(tag.tag_type, "category");
+        assert_eq!(tag.name, "ARPG");
+    }
+
+    #[test]
+    fn upsert_typed_is_idempotent_by_name() {
+        let conn = test_db();
+        let a = upsert_typed(&conn, "Co-op", "#111", "functional").unwrap();
+        let b = upsert_typed(&conn, "Co-op", "#222", "functional").unwrap();
+        assert_eq!(a.id, b.id, "same name must resolve to the same tag");
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tags WHERE name = 'Co-op'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn mood_and_regular_delegate_to_typed() {
+        let conn = test_db();
+        assert_eq!(upsert_mood(&conn, "Cozy", "#0f0").unwrap().tag_type, "mood");
+        assert_eq!(upsert_regular(&conn, "Misc", "#0f0").unwrap().tag_type, "regular");
+    }
 }

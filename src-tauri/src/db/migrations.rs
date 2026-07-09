@@ -58,6 +58,7 @@ fn all_migrations() -> Vec<(&'static str, &'static str)> {
         ("013_nullable_collection", include_str!("../../migrations/013_nullable_collection.sql")),
         ("014_steam_system_collection", include_str!("../../migrations/014_steam_system_collection.sql")),
         ("015_collections_to_grouping_tags", include_str!("../../migrations/015_collections_to_grouping_tags.sql")),
+        ("016_demote_steam_collection_groupings", include_str!("../../migrations/016_demote_steam_collection_groupings.sql")),
     ]
 }
 
@@ -273,6 +274,44 @@ mod tests {
         let celeste_tag: String = conn
             .query_row("SELECT t.name FROM item_tags it JOIN tags t ON t.id = it.tag_id WHERE it.item_id = 'i2'", [], |r| r.get(0)).unwrap();
         assert_eq!(celeste_tag, "Indie");
+    }
+
+    /// Migration 016 demotes legacy Steam-collection grouping tags to regular
+    /// tags, keeps the system Steam grouping, and leaves user groupings alone.
+    #[test]
+    fn migration_016_demotes_steam_collection_groupings() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        ensure_migrations_table(&conn).unwrap();
+        for (name, sql) in all_migrations() {
+            if name == "016_demote_steam_collection_groupings" {
+                break;
+            }
+            apply(&conn, name, sql).unwrap();
+        }
+
+        conn.execute_batch(
+            "INSERT INTO tags (id, name, color, group_id, tag_type, icon, description, sort_order) VALUES
+                ('g-ac', 'Assassin''s Creed', '#66c0f4', NULL, 'grouping', 'steam', 'Steam collection: Assassin''s Creed', 3),
+                ('g-rpg', 'RPGs', '#f00', NULL, 'grouping', 'sword', 'my games', 1);",
+        ).unwrap();
+
+        let sql = all_migrations().into_iter()
+            .find(|(n, _)| *n == "016_demote_steam_collection_groupings").unwrap().1;
+        apply(&conn, "016_demote_steam_collection_groupings", sql).unwrap();
+
+        // The Steam-collection grouping is now a regular tag.
+        let ac_type: String = conn
+            .query_row("SELECT tag_type FROM tags WHERE id = 'g-ac'", [], |r| r.get(0)).unwrap();
+        assert_eq!(ac_type, "regular");
+        // The user grouping is untouched.
+        let rpg_type: String = conn
+            .query_row("SELECT tag_type FROM tags WHERE id = 'g-rpg'", [], |r| r.get(0)).unwrap();
+        assert_eq!(rpg_type, "grouping");
+        // The system Steam grouping is preserved.
+        let steam_type: String = conn
+            .query_row("SELECT tag_type FROM tags WHERE id = 'steam-system'", [], |r| r.get(0)).unwrap();
+        assert_eq!(steam_type, "grouping");
     }
 
     /// A migration that leaves a dangling foreign key must roll back and not be

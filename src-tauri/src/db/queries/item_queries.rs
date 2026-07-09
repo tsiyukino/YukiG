@@ -94,6 +94,27 @@ pub fn get_by_collection(conn: &Connection, collection_id: &str) -> Result<Vec<I
     rows.collect()
 }
 
+/// Returns all root items tagged with `tag_id`, ordered like a collection.
+///
+/// The grouping-tag equivalent of `get_by_collection`: an item belongs to a
+/// group when it has an `item_tags` row for that group's tag.
+///
+/// # Errors
+/// Returns a `rusqlite::Error` if the query fails.
+pub fn get_by_tag(conn: &Connection, tag_id: &str) -> Result<Vec<Item>> {
+    let mut stmt = conn.prepare(
+        "SELECT i.id, i.collection_id, i.parent_id, i.name, i.folder_path, i.strategy_type, i.category,
+                i.description, i.notes, i.thumbnail_path, i.sort_order, i.is_favorite, i.created_at, i.updated_at
+         FROM items i
+         JOIN item_tags it ON it.item_id = i.id
+         WHERE it.tag_id = ?1 AND i.parent_id IS NULL
+         ORDER BY i.sort_order ASC, i.name ASC",
+    )?;
+
+    let rows = stmt.query_map([tag_id], map_row)?;
+    rows.collect()
+}
+
 /// Retrieves all child items of a given parent item (virtual_folder or virtual_group),
 /// ordered by sort_order then name.
 ///
@@ -275,7 +296,28 @@ pub fn get_favorites_by_collection(conn: &Connection, collection_id: &str) -> Re
 /// # Errors
 /// Returns a `rusqlite::Error` if the query fails.
 pub fn get_all_favorites(conn: &Connection) -> Result<Vec<FavoriteItem>> {
-    let mut stmt = conn.prepare(
+    get_favorite_items_where(conn, "i.is_favorite = 1")
+}
+
+/// Retrieves every root game item with cover fields, deduplicated.
+///
+/// Unlike walking each grouping's members (which returns a game once per group
+/// it belongs to), this returns each game exactly once — the correct source
+/// for an all-games count and the now-playing banner.
+///
+/// # Errors
+/// Returns a `rusqlite::Error` if the query fails.
+pub fn get_all_games_full(conn: &Connection) -> Result<Vec<FavoriteItem>> {
+    get_favorite_items_where(
+        conn,
+        "i.parent_id IS NULL AND i.strategy_type IN ('game', 'steam_game')",
+    )
+}
+
+/// Shared body for the cover-joined item queries: same SELECT/JOIN/mapping,
+/// parameterised only by the WHERE clause.
+fn get_favorite_items_where(conn: &Connection, where_clause: &str) -> Result<Vec<FavoriteItem>> {
+    let sql = format!(
         "SELECT i.id, i.collection_id, i.parent_id, i.name, i.folder_path, i.strategy_type,
                 i.category, i.description, i.notes, i.thumbnail_path, i.sort_order,
                 i.is_favorite, i.created_at, i.updated_at,
@@ -286,9 +328,10 @@ pub fn get_all_favorites(conn: &Connection) -> Result<Vec<FavoriteItem>> {
                ON sm_header.item_id = i.id AND sm_header.key = 'header_image'
          LEFT JOIN strategy_metadata sm_icon
                ON sm_icon.item_id = i.id AND sm_icon.key = 'icon_url'
-         WHERE i.is_favorite = 1
-         ORDER BY i.name ASC",
-    )?;
+         WHERE {where_clause}
+         ORDER BY i.name ASC"
+    );
+    let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], |row| {
         let is_fav: i64 = row.get(11)?;
         Ok(FavoriteItem {

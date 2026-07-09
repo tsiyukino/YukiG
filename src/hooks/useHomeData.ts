@@ -11,11 +11,12 @@ import { Collection } from "@/types/collection";
 import { FavoriteItem } from "@/types/item";
 import { Tag } from "@/types/tag";
 import {
-  collectionGetAll,
-  itemGetByCollection,
+  tagGetGrouping,
   itemGetAllFavorites,
+  itemGetAllGamesFull,
   tagGetAll,
 } from "@/services/tauriCommands";
+import { groupingTagToCollection } from "@/utils/groupingTag";
 
 export interface HomeData {
   /** User-created (non-Steam) collections. */
@@ -58,39 +59,38 @@ export function useHomeData(): UseHomeDataReturn {
     setLoading(true);
     setError(null);
     try {
-      const [collections, tags, allFavorites] = await Promise.all([
-        collectionGetAll(),
+      const [groupingTags, allTags, allFavorites, allGames] = await Promise.all([
+        tagGetGrouping(),
         tagGetAll(),
         itemGetAllFavorites(),
+        itemGetAllGamesFull(),
       ]);
 
+      const collections = groupingTags.map(groupingTagToCollection);
       const userCollections = collections.filter((c) => c.default_strategy !== "steam_game");
-      const steamCollections = collections.filter((c) => c.default_strategy === "steam_game");
 
-      // Fetch items for every collection, user and Steam alike. Steam games are
-      // first-class library items now, so they belong in allItems — the
-      // now-playing banner and any all-games consumer resolve against it.
-      const [userItemResults, ...steamItemResults] = await Promise.all([
-        Promise.all(userCollections.map((c) => itemGetByCollection(c.id))),
-        ...steamCollections.map((c) => itemGetByCollection(c.id)),
-      ]);
-      const userItems = (userItemResults as FavoriteItem[][]).flat();
-      const steamItems = (steamItemResults as FavoriteItem[][]).flat();
-      const allItems = [...userItems, ...steamItems];
+      // allItems is the deduplicated set of every game. Walking each grouping's
+      // members would count a game once per group it belongs to (a game can be
+      // in several groups now), so we read the whole-library list instead.
+      const allItems = allGames;
+      const steamGameCount = allGames.filter((g) => g.strategy_type === "steam_game").length;
+
+      // Tag stat excludes grouping tags (they are shown as collections, not tags).
+      const nonGroupingTags = allTags.filter((t) => t.tag_type !== "grouping");
 
       const stats = {
-        collections: userCollections.length + steamCollections.length,
+        collections: collections.length,
         games: allItems.length,
         favorites: allFavorites.length,
-        tags: tags.length,
+        tags: nonGroupingTags.length,
       };
 
       setData({
         collections: userCollections,
         allItems,
         allFavorites,
-        tags,
-        steamGameCount: steamItems.length,
+        tags: nonGroupingTags,
+        steamGameCount,
         stats,
       });
     } catch (err) {

@@ -38,6 +38,22 @@ pub fn tag_get_all(db: State<DbConnection>) -> Result<Vec<Tag>, String> {
     tag_queries::get_all(&conn).map_err(|e| e.to_string())
 }
 
+/// Returns all grouping tags (the successor to collections), in manual order.
+#[tauri::command]
+pub fn tag_get_grouping(db: State<DbConnection>) -> Result<Vec<Tag>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    tag_queries::get_by_type(&conn, "grouping").map_err(|e| e.to_string())
+}
+
+/// Returns the root items belonging to a grouping tag.
+///
+/// The grouping-tag equivalent of `item_get_by_collection`.
+#[tauri::command]
+pub fn tag_get_games(db: State<DbConnection>, tag_id: String) -> Result<Vec<Item>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    item_queries::get_by_tag(&conn, &tag_id).map_err(|e| e.to_string())
+}
+
 /// Creates a new ungrouped tag.
 #[tauri::command]
 pub fn tag_create(db: State<DbConnection>, name: String, color: String) -> Result<Tag, String> {

@@ -5,9 +5,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { collectionReorder } from "@/services/tauriCommands";
+import { tagReorder } from "@/services/tauriCommands";
 import { Collection, NewCollection } from "@/types/collection";
 import { useCollections } from "@/hooks/useCollections";
+import { isPlatformCollection } from "@/utils/groupingTag";
 import Card from "@/components/common/Card";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import CollectionCard from "@/components/games/CollectionCard";
@@ -16,10 +17,13 @@ import styles from "./CardView.module.css";
 
 /**
  * Reorderable collection card grid with create/delete actions.
+ *
+ * The Steam system group is always hidden here — it is the Steam library
+ * container, browsed on the Steam page, not a user organisational group.
  */
 export default function CardView() {
   const navigate = useNavigate();
-  const { collections: rawCollections, loading, error, createCollection, deleteCollection } = useCollections();
+  const { collections: rawCollections, loading, error, createCollection, deleteCollection, refresh } = useCollections();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
@@ -27,8 +31,11 @@ export default function CardView() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
-  // Sync local order state from hook whenever raw data changes
-  useEffect(() => { setCollections(rawCollections); }, [rawCollections]);
+  // Sync local order state from hook whenever raw data changes, always hiding
+  // the Steam system group.
+  useEffect(() => {
+    setCollections(rawCollections.filter((c) => !isPlatformCollection(c)));
+  }, [rawCollections]);
 
   async function handleCreate(input: NewCollection) {
     await createCollection(input);
@@ -56,7 +63,10 @@ export default function CardView() {
     next.splice(dropIndex, 0, moved);
     setCollections(next);
     dragIndexRef.current = null;
-    await collectionReorder(next.map((c, i) => [c.id, i])).catch(() => {});
+    await tagReorder(next.map((c, i) => [c.id, i] as [string, number])).catch(() => {});
+    // Invalidate the shared cache so navigating away and back reflects the new
+    // order; the local state above already shows it for the current view.
+    refresh();
   }
 
   if (loading) return <LoadingSpinner message="Loading collections..." />;

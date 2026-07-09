@@ -241,6 +241,16 @@ pub fn item_get_all_favorites(db: State<DbConnection>) -> Result<Vec<item_querie
     item_queries::get_all_favorites(&conn).map_err(|e| e.to_string())
 }
 
+/// Returns every root game item (local + Steam) once, with cover fields.
+///
+/// Deduplicated — used for the all-games count and now-playing banner, which
+/// must not double-count a game that belongs to several groups.
+#[tauri::command]
+pub fn item_get_all_games_full(db: State<DbConnection>) -> Result<Vec<item_queries::FavoriteItem>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    item_queries::get_all_games_full(&conn).map_err(|e| e.to_string())
+}
+
 /// Returns all items in a collection where `is_favorite = 1`, regardless of nesting depth.
 ///
 /// Used by the frontend to populate the virtual "Favorites" group without relying on

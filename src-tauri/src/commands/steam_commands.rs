@@ -590,6 +590,9 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
             // Update tags and online status on every sync (categories/collections may have changed).
             apply_steam_category_tags(&conn, item_id, &game.categories);
             apply_steam_collection_tags(&conn, item_id, &game.collections);
+            // Membership in the Steam grouping tag (the home/Games views read
+            // grouping tags, not collection_id).
+            let _ = tag_queries::assign(&conn, item_id, STEAM_SYSTEM_COLLECTION_ID);
             if is_online_active(&game.categories) {
                 let _ = conn.execute(
                     "INSERT INTO game_status (item_id, story_status, online_status, snooze_until) \
@@ -628,6 +631,7 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
             }
             apply_steam_category_tags(&conn, &item.id, &game.categories);
             apply_steam_collection_tags(&conn, &item.id, &game.collections);
+            let _ = tag_queries::assign(&conn, &item.id, STEAM_SYSTEM_COLLECTION_ID);
             if is_online_active(&game.categories) {
                 let _ = conn.execute(
                     "INSERT INTO game_status (item_id, story_status, online_status, snooze_until) \

@@ -35,6 +35,23 @@ export async function tagGetAll(): Promise<Tag[]> {
 }
 
 /**
+ * Returns all grouping tags (the successor to collections) in manual order.
+ * @throws {string} If the query fails
+ */
+export async function tagGetGrouping(): Promise<Tag[]> {
+  return invoke("tag_get_grouping");
+}
+
+/**
+ * Returns the root game items belonging to a grouping tag.
+ * @param tagId - The grouping tag's id
+ * @throws {string} If the query fails
+ */
+export async function tagGetGames(tagId: string): Promise<Item[]> {
+  return invoke("tag_get_games", { tagId });
+}
+
+/**
  * Creates a new tag.
  * @param name - Unique tag name
  * @param color - Hex color string

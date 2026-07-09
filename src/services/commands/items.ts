@@ -145,6 +145,15 @@ export async function itemGetAllFavorites(): Promise<FavoriteItem[]> {
 }
 
 /**
+ * Returns every root game (local + Steam) once, with cover metadata.
+ * Deduplicated — safe for an all-games count and now-playing resolution.
+ * @throws {string} If the query fails
+ */
+export async function itemGetAllGamesFull(): Promise<FavoriteItem[]> {
+  return invoke("item_get_all_games_full");
+}
+
+/**
  * Sets or clears the favorite flag on an item.
  * @param id - The item UUID
  * @param isFavorite - True to mark as favorite, false to unmark

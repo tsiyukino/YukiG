@@ -36,6 +36,7 @@ export default function GamesPage() {
   const [showAdd, setShowAdd] = useState(false);
   // Bump to force the active view to reload after adding or filing a game.
   const [reloadKey, setReloadKey] = useState(0);
+  const [unfiledCollapsed, setUnfiledCollapsed] = useState(false);
   const unfiled = useUngrouped();
 
   function handleSetView(v: ViewMode) {
@@ -71,14 +72,19 @@ export default function GamesPage() {
         }
       />
 
-      <div className={styles.split}>
+      <div className={unfiledCollapsed ? `${styles.split} ${styles.splitCollapsed}` : styles.split}>
         <div className={styles.main} key={reloadKey}>
           {view === "card" && <CardView onFileGame={fileGame} />}
           {view === "compact" && <CompactView />}
           {view === "list" && <ListView />}
           {view === "table" && <TableView />}
         </div>
-        <UnfiledPanel games={unfiled.games} loading={unfiled.loading} />
+        <UnfiledPanel
+          games={unfiled.games}
+          loading={unfiled.loading}
+          collapsed={unfiledCollapsed}
+          onToggleCollapsed={() => setUnfiledCollapsed((c) => !c)}
+        />
       </div>
 
       {showAdd && (

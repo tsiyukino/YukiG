@@ -11,13 +11,18 @@
   gap: var(--space-2);
 }
 
-/* The collection area keeps a constant width whether the unfiled panel is
-   open or collapsed: the panel is positioned in the right gutter and the main
-   area always reserves that gutter, so nothing reflows on toggle. */
+/* The unfiled panel sits in a right gutter reserved by padding. Collapsing
+   animates the gutter down to just the handle width, so the collection area
+   smoothly grows to reclaim the space instead of snapping. */
 .split {
   position: relative;
-  /* Reserve the panel's width on the right so .main never widens on collapse. */
-  padding-right: var(--unfiled-w, 260px);
+  padding-right: 260px;
+  transition: padding-right var(--transition, 200ms) ease;
+}
+
+.splitCollapsed {
+  /* Leave room only for the bookmark handle (14px). */
+  padding-right: 14px;
 }
 
 .main {

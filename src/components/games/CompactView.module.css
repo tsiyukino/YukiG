@@ -1,7 +1,9 @@
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  /* Fixed-width cards so they don't rubber-band while the layout animates. */
+  grid-template-columns: repeat(auto-fill, 140px);
   gap: var(--space-2);
+  justify-content: start;
 }
 
 .error {

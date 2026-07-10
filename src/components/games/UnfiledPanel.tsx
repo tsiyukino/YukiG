@@ -3,7 +3,6 @@
  * collection (library root). Games are dragged from here onto a collection to
  * file them. Collapsible via a bookmark handle on its left edge.
  */
-import { useState } from "react";
 import { ChevronRight, Gamepad2 } from "lucide-react";
 import { FavoriteItem } from "@/types/item";
 import { steamImageSrc } from "@/utils/pathUtils";
@@ -26,14 +25,16 @@ function coverOf(g: FavoriteItem): string | null {
 interface UnfiledPanelProps {
   games: FavoriteItem[];
   loading: boolean;
+  /** Collapsed state is owned by the page so it can also animate the layout. */
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 /**
  * Collapsible column of unfiled games. Each game is draggable (dataTransfer
  * carries its item id) so it can be dropped onto a collection to file it.
  */
-export default function UnfiledPanel({ games, loading }: UnfiledPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
+export default function UnfiledPanel({ games, loading, collapsed, onToggleCollapsed }: UnfiledPanelProps) {
   const navigate = useNavigate();
 
   return (
@@ -41,7 +42,7 @@ export default function UnfiledPanel({ games, loading }: UnfiledPanelProps) {
       {/* Bookmark handle on the seam — no divider line, a tab with a chevron. */}
       <button
         className={styles.handle}
-        onClick={() => setCollapsed((c) => !c)}
+        onClick={onToggleCollapsed}
         title={collapsed ? "Show unfiled games" : "Hide unfiled games"}
         aria-expanded={!collapsed}
       >

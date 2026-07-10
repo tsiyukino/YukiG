@@ -1,20 +1,25 @@
-/* Positioned in the right gutter reserved by GamesPage's .split. The gutter
-   stays reserved whether open or collapsed, so the collection area never
-   reflows. Collapsing fades/slides only the body; the handle stays pinned at
-   the gutter's left edge. */
+/* Sits in the right gutter reserved by GamesPage's .split. The handle is a
+   14px strip at the panel's own left edge — part of the panel, never overlapping
+   the collection cards. Collapsing hides the body; the handle strip stays. */
 .panel {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   width: 260px;
+  transition: transform var(--transition, 200ms) ease;
 }
 
-/* Bookmark handle: a small tab protruding on the panel's left edge, no divider
-   line. Pinned so it stays visible even when the body slides away. */
+/* Collapsed: slide the panel right by its body width so only the 14px handle
+   strip remains in the gutter, moving in step with .split's padding animation. */
+.panel.collapsed {
+  transform: translateX(246px);
+}
+
+/* Bookmark handle: a tab at the panel's left-edge strip, no divider line. */
 .handle {
   position: absolute;
-  left: -14px;
+  left: 0;
   top: 14px;
   width: 14px;
   height: 32px;
@@ -46,16 +51,19 @@
 }
 
 .body {
-  height: 100%;
+  position: absolute;
+  left: 14px;
+  right: 0;
+  top: 0;
+  bottom: 0;
   padding: var(--space-3);
   border-left: 1px solid var(--color-border);
   overflow-y: auto;
-  transition: opacity var(--transition, 200ms) ease, transform var(--transition, 200ms) ease;
+  transition: opacity var(--transition, 200ms) ease;
 }
 
 .collapsed .body {
   opacity: 0;
-  transform: translateX(16px);
   pointer-events: none;
 }
 

@@ -1,7 +1,12 @@
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  /* Fixed-width cards (not 1fr): the container width changes while the unfiled
+     panel animates and on window resize, but cards never stretch — only the
+     number of columns changes. This kills the rubber-band effect during the
+     collapse animation. */
+  grid-template-columns: repeat(auto-fill, 200px);
   gap: var(--space-4);
+  justify-content: start;
 }
 
 .error {

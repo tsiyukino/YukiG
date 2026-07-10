@@ -1,9 +1,7 @@
 /**
- * Second add-item step: collection (when opened without context),
- * chosen path, display name, and strategy type.
+ * Second add-item step: chosen path, display name, and strategy type.
  */
-import { useState, useEffect } from "react";
-import { collectionGetAll, StrategyEntry } from "@/services/tauriCommands";
+import { StrategyEntry } from "@/services/tauriCommands";
 import { PickMode } from "@/hooks/useAddItemFlow";
 import form from "@/styles/form.module.css";
 
@@ -18,42 +16,23 @@ interface DetailsStepProps {
   strategyType: string;
   onStrategyChange: (v: string) => void;
   strategies: StrategyEntry[];
-  /** Empty string = not yet in a collection context; show a selector. */
-  collectionId: string;
-  onCollectionChange: (id: string) => void;
 }
 
 /**
  * Renders the name/type form for the picked path.
+ *
+ * Games are added ungrouped; the user files them into groups afterward from a
+ * group page, so there is no collection picker here.
  */
 export default function DetailsStep({
   folderPath, pickMode, name, onNameChange, strategyType, onStrategyChange, strategies,
-  collectionId, onCollectionChange,
 }: DetailsStepProps) {
-  const [collections, setCollections] = useState<{ id: string; name: string }[]>([]);
-
-  useEffect(() => {
-    if (collectionId) return; // already have a collection, no need to load
-    collectionGetAll().then(setCollections).catch(() => {});
-  }, [collectionId]);
-
   const filteredStrategies = pickMode === "folder"
     ? strategies.filter((s) => FOLDER_STRATEGY_TYPES.includes(s.strategy_type))
     : strategies.filter((s) => !s.group);
 
   return (
     <>
-      {!collectionId && (
-        <label className={form.label}>
-          Add to collection
-          <select className={form.input} value="" onChange={(e) => onCollectionChange(e.target.value)}>
-            <option value="" disabled>Select a collection…</option>
-            {collections.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </label>
-      )}
       <div className={form.label}>
         {pickMode === "file" ? "Selected file" : "Selected folder"}
         <div className={form.pathBox}>{folderPath}</div>

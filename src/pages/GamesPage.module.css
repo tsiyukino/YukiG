@@ -4,3 +4,40 @@
   flex-direction: column;
   gap: var(--space-5);
 }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The collection area keeps a constant width whether the unfiled panel is
+   open or collapsed: the panel is positioned in the right gutter and the main
+   area always reserves that gutter, so nothing reflows on toggle. */
+.split {
+  position: relative;
+  /* Reserve the panel's width on the right so .main never widens on collapse. */
+  padding-right: var(--unfiled-w, 260px);
+}
+
+.main {
+  min-width: 0;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: #ffffff;
+  background: var(--color-accent);
+  transition: background var(--transition-fast);
+}
+
+.addBtn:hover {
+  background: var(--color-accent-hover);
+}

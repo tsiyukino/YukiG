@@ -5,28 +5,35 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { tagReorder } from "@/services/tauriCommands";
+import { collectionReorder } from "@/services/tauriCommands";
 import { Collection, NewCollection } from "@/types/collection";
 import { useCollections } from "@/hooks/useCollections";
-import { isPlatformCollection } from "@/utils/groupingTag";
+import { isPlatformCollection } from "@/utils/collectionSource";
 import Card from "@/components/common/Card";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import CollectionCard from "@/components/games/CollectionCard";
 import CollectionDialogs from "@/components/games/CollectionDialogs";
 import styles from "./CardView.module.css";
 
+interface CardViewProps {
+  /** Files a dragged unfiled game into a collection. */
+  onFileGame?: (itemId: string, collectionId: string) => void;
+}
+
 /**
  * Reorderable collection card grid with create/delete actions.
  *
  * The Steam system group is always hidden here — it is the Steam library
  * container, browsed on the Steam page, not a user organisational group.
+ * Collection cards accept dropped games (from the unfiled panel) to file them.
  */
-export default function CardView() {
+export default function CardView({ onFileGame }: CardViewProps) {
   const navigate = useNavigate();
   const { collections: rawCollections, loading, error, createCollection, deleteCollection, refresh } = useCollections();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragIndexRef = useRef<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
@@ -63,7 +70,7 @@ export default function CardView() {
     next.splice(dropIndex, 0, moved);
     setCollections(next);
     dragIndexRef.current = null;
-    await tagReorder(next.map((c, i) => [c.id, i] as [string, number])).catch(() => {});
+    await collectionReorder(next.map((c, i) => [c.id, i] as [string, number])).catch(() => {});
     // Invalidate the shared cache so navigating away and back reflects the new
     // order; the local state above already shows it for the current view.
     refresh();
@@ -92,9 +99,32 @@ export default function CardView() {
               <div
                 draggable
                 onDragStart={() => handleDragStart(index)}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverIndex(index); }}
+                onDragOver={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  // A game being filed sets the item mime type; a reorder does not.
+                  if (e.dataTransfer.types.includes("application/x-yukig-item")) {
+                    setDropTargetId(collection.id);
+                  } else {
+                    setDragOverIndex(index);
+                  }
+                }}
+                onDragLeave={() => setDropTargetId((id) => (id === collection.id ? null : id))}
+                onDrop={(e) => {
+                  const itemId = e.dataTransfer.getData("application/x-yukig-item");
+                  if (itemId) {
+                    e.preventDefault(); e.stopPropagation();
+                    setDropTargetId(null);
+                    onFileGame?.(itemId, collection.id);
+                  }
+                }}
                 onDragEnd={() => { setDragOverIndex(null); setDraggingIndex(null); }}
-                className={draggingIndex === index ? `${styles.dragItem} ${styles.dragging}` : styles.dragItem}
+                className={
+                  dropTargetId === collection.id
+                    ? `${styles.dragItem} ${styles.fileTarget}`
+                    : draggingIndex === index
+                    ? `${styles.dragItem} ${styles.dragging}`
+                    : styles.dragItem
+                }
               >
                 <CollectionCard
                   collection={collection}

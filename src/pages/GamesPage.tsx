@@ -4,7 +4,7 @@
  * and falls back to the app preference default.
  */
 import { useState } from "react";
-import { LayoutGrid, List, LayoutList, Table2 } from "lucide-react";
+import { LayoutGrid, List, LayoutList, Table2, Plus } from "lucide-react";
 import { readAppPrefs } from "@/hooks/useAppPrefs";
 import PageTitle from "@/components/common/PageTitle";
 import ViewToggle, { ViewOption } from "@/components/common/ViewToggle";
@@ -12,6 +12,9 @@ import CardView from "@/components/games/CardView";
 import CompactView from "@/components/games/CompactView";
 import ListView from "@/components/games/ListView";
 import TableView from "@/components/games/TableView";
+import UnfiledPanel from "@/components/games/UnfiledPanel";
+import AddItemModal from "@/pages/AddItemModal";
+import { useUngrouped } from "@/hooks/useUngrouped";
 import styles from "./GamesPage.module.css";
 
 type ViewMode = "card" | "compact" | "list" | "table";
@@ -30,10 +33,26 @@ export default function GamesPage() {
   const [view, setView] = useState<ViewMode>(
     () => (localStorage.getItem("games-view") as ViewMode | null) ?? readAppPrefs().defaultGamesView
   );
+  const [showAdd, setShowAdd] = useState(false);
+  // Bump to force the active view to reload after adding or filing a game.
+  const [reloadKey, setReloadKey] = useState(0);
+  const unfiled = useUngrouped();
 
   function handleSetView(v: ViewMode) {
     localStorage.setItem("games-view", v);
     setView(v);
+  }
+
+  /** Files a game into a collection, then refreshes both columns. */
+  async function fileGame(itemId: string, collectionId: string) {
+    await unfiled.fileInto(itemId, collectionId);
+    setReloadKey((k) => k + 1);
+  }
+
+  function afterAdd() {
+    setShowAdd(false);
+    unfiled.refresh();
+    setReloadKey((k) => k + 1);
   }
 
   return (
@@ -41,13 +60,35 @@ export default function GamesPage() {
       <PageTitle
         title="Games"
         subtitle="All collections in one place"
-        actions={<ViewToggle options={VIEW_OPTIONS} value={view} onChange={handleSetView} />}
+        actions={
+          <div className={styles.actions}>
+            <button className={styles.addBtn} onClick={() => setShowAdd(true)}>
+              <Plus size={14} />
+              Add Local Game
+            </button>
+            <ViewToggle options={VIEW_OPTIONS} value={view} onChange={handleSetView} />
+          </div>
+        }
       />
 
-      {view === "card" && <CardView />}
-      {view === "compact" && <CompactView />}
-      {view === "list" && <ListView />}
-      {view === "table" && <TableView />}
+      <div className={styles.split}>
+        <div className={styles.main} key={reloadKey}>
+          {view === "card" && <CardView onFileGame={fileGame} />}
+          {view === "compact" && <CompactView />}
+          {view === "list" && <ListView />}
+          {view === "table" && <TableView />}
+        </div>
+        <UnfiledPanel games={unfiled.games} loading={unfiled.loading} />
+      </div>
+
+      {showAdd && (
+        <AddItemModal
+          collectionId={null}
+          defaultStrategy="game"
+          onSuccess={afterAdd}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
     </div>
   );
 }

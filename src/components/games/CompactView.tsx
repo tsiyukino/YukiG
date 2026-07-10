@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { Collection, NewCollection } from "@/types/collection";
 import { useCollections } from "@/hooks/useCollections";
-import { isPlatformCollection } from "@/utils/groupingTag";
+import { isPlatformCollection } from "@/utils/collectionSource";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import CompactCard from "@/components/games/CompactCard";
 import CollectionDialogs from "@/components/games/CollectionDialogs";

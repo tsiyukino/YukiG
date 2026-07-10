@@ -23,6 +23,13 @@
   opacity: 0.35;
 }
 
+/* Highlight a collection card as a drop target when filing a dragged game. */
+.fileTarget {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
 .dropSlot {
   border-radius: var(--radius-md);
   border: 2px dashed var(--color-accent);

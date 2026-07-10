@@ -11,12 +11,11 @@ import { Collection } from "@/types/collection";
 import { FavoriteItem } from "@/types/item";
 import { Tag } from "@/types/tag";
 import {
-  tagGetGrouping,
+  collectionGetAll,
   itemGetAllFavorites,
   itemGetAllGamesFull,
   tagGetAll,
 } from "@/services/tauriCommands";
-import { groupingTagToCollection } from "@/utils/groupingTag";
 
 export interface HomeData {
   /** User-created (non-Steam) collections. */
@@ -59,37 +58,32 @@ export function useHomeData(): UseHomeDataReturn {
     setLoading(true);
     setError(null);
     try {
-      const [groupingTags, allTags, allFavorites, allGames] = await Promise.all([
-        tagGetGrouping(),
+      const [collections, allTags, allFavorites, allGames] = await Promise.all([
+        collectionGetAll(),
         tagGetAll(),
         itemGetAllFavorites(),
         itemGetAllGamesFull(),
       ]);
 
-      const collections = groupingTags.map(groupingTagToCollection);
       const userCollections = collections.filter((c) => c.default_strategy !== "steam_game");
 
-      // allItems is the deduplicated set of every game. Walking each grouping's
-      // members would count a game once per group it belongs to (a game can be
-      // in several groups now), so we read the whole-library list instead.
+      // allItems is the deduplicated whole-library game list, so counts and the
+      // now-playing banner never double-count.
       const allItems = allGames;
       const steamGameCount = allGames.filter((g) => g.strategy_type === "steam_game").length;
-
-      // Tag stat excludes grouping tags (they are shown as collections, not tags).
-      const nonGroupingTags = allTags.filter((t) => t.tag_type !== "grouping");
 
       const stats = {
         collections: collections.length,
         games: allItems.length,
         favorites: allFavorites.length,
-        tags: nonGroupingTags.length,
+        tags: allTags.length,
       };
 
       setData({
         collections: userCollections,
         allItems,
         allFavorites,
-        tags: nonGroupingTags,
+        tags: allTags,
         steamGameCount,
         stats,
       });

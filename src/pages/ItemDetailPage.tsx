@@ -39,9 +39,11 @@ function StrategyView({ item }: { item: Item }) {
 
 /** Displays full details for a single item including strategy-specific info. */
 export default function ItemDetailPage() {
-  const { id, itemId } = useParams<{ id: string; itemId: string }>();
+  const { id, itemId } = useParams<{ id?: string; itemId: string }>();
   const navigate = useNavigate();
-  const detail = useItemDetail(itemId!, () => navigate(`/collections/${id}`));
+  // After delete: return to the group the item was opened from, or back in
+  // history when opened via the standalone /items/:itemId route (no group).
+  const detail = useItemDetail(itemId!, () => (id ? navigate(`/collections/${id}`) : navigate(-1)));
   const { item } = detail;
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

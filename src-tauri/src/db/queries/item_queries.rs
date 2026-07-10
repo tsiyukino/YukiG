@@ -314,6 +314,36 @@ pub fn get_all_games_full(conn: &Connection) -> Result<Vec<FavoriteItem>> {
     )
 }
 
+/// Retrieves root games that are not filed in any collection (library root).
+///
+/// These are the "unfiled" games shown in the Games page's staging column,
+/// from where they can be dragged into a collection.
+///
+/// # Errors
+/// Returns a `rusqlite::Error` if the query fails.
+pub fn get_ungrouped_games(conn: &Connection) -> Result<Vec<FavoriteItem>> {
+    get_favorite_items_where(
+        conn,
+        "i.parent_id IS NULL AND i.collection_id IS NULL \
+         AND i.strategy_type IN ('game', 'steam_game')",
+    )
+}
+
+/// Moves an item into a collection, or unfiles it when `collection_id` is None.
+///
+/// This is the storage-location change behind dragging a game between the
+/// unfiled column and a collection (folder-storage model).
+///
+/// # Errors
+/// Returns a `rusqlite::Error` if the update fails.
+pub fn set_collection(conn: &Connection, item_id: &str, collection_id: Option<&str>) -> Result<()> {
+    conn.execute(
+        "UPDATE items SET collection_id = ?1, updated_at = datetime('now') WHERE id = ?2",
+        rusqlite::params![collection_id, item_id],
+    )?;
+    Ok(())
+}
+
 /// Shared body for the cover-joined item queries: same SELECT/JOIN/mapping,
 /// parameterised only by the WHERE clause.
 fn get_favorite_items_where(conn: &Connection, where_clause: &str) -> Result<Vec<FavoriteItem>> {
@@ -389,4 +419,56 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<Item> {
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::migrations::run(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO collections (id, name, icon, color, description, sort_order, created_at, updated_at)
+             VALUES ('c1', 'RPGs', 'folder', '#000', '', 0, 't', 't')",
+            [],
+        ).unwrap();
+        conn
+    }
+
+    fn insert_game(conn: &Connection, id: &str, collection_id: Option<&str>) {
+        conn.execute(
+            "INSERT INTO items (id, collection_id, name, folder_path, strategy_type, created_at, updated_at)
+             VALUES (?1, ?2, ?1, 'C:/g', 'game', 't', 't')",
+            rusqlite::params![id, collection_id],
+        ).unwrap();
+    }
+
+    #[test]
+    fn ungrouped_returns_only_unfiled_games() {
+        let conn = test_db();
+        insert_game(&conn, "filed", Some("c1"));
+        insert_game(&conn, "unfiled", None);
+
+        let ids: Vec<String> = get_ungrouped_games(&conn).unwrap().into_iter().map(|g| g.item.id).collect();
+        assert_eq!(ids, vec!["unfiled"]);
+    }
+
+    #[test]
+    fn set_collection_files_and_unfiles() {
+        let conn = test_db();
+        insert_game(&conn, "g1", None);
+
+        // File into c1.
+        set_collection(&conn, "g1", Some("c1")).unwrap();
+        let cid: Option<String> = conn
+            .query_row("SELECT collection_id FROM items WHERE id = 'g1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(cid.as_deref(), Some("c1"));
+
+        // Unfile back to root.
+        set_collection(&conn, "g1", None).unwrap();
+        let cid2: Option<String> = conn
+            .query_row("SELECT collection_id FROM items WHERE id = 'g1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(cid2, None);
+    }
 }

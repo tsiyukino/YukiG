@@ -65,7 +65,7 @@ export async function itemGetById(id: string): Promise<Item> {
  * @throws {string} If the collection does not exist or insert fails
  */
 export async function itemCreate(
-  collectionId: string,
+  collectionId: string | null,
   name: string,
   folderPath: string,
   strategyType: string,
@@ -73,7 +73,7 @@ export async function itemCreate(
   parentId?: string | null
 ): Promise<Item> {
   return invoke("item_create", {
-    collectionId,
+    collectionId: collectionId ?? null,
     name,
     folderPath,
     strategyType,
@@ -151,6 +151,24 @@ export async function itemGetAllFavorites(): Promise<FavoriteItem[]> {
  */
 export async function itemGetAllGamesFull(): Promise<FavoriteItem[]> {
   return invoke("item_get_all_games_full");
+}
+
+/**
+ * Returns root games not filed in any collection (the library root / unfiled).
+ * @throws {string} If the query fails
+ */
+export async function itemGetUngrouped(): Promise<FavoriteItem[]> {
+  return invoke("item_get_ungrouped");
+}
+
+/**
+ * Moves an item into a collection, or unfiles it when collectionId is null.
+ * @param itemId - The item to move
+ * @param collectionId - Target collection id, or null to unfile to the root
+ * @throws {string} If the update fails
+ */
+export async function itemSetCollection(itemId: string, collectionId: string | null): Promise<void> {
+  return invoke("item_set_collection", { itemId, collectionId });
 }
 
 /**

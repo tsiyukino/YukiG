@@ -4,7 +4,7 @@
 import { useCollections } from "@/hooks/useCollections";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import CollectionSection from "@/components/games/CollectionSection";
-import { isPlatformCollection } from "@/utils/groupingTag";
+import { isPlatformCollection } from "@/utils/collectionSource";
 import styles from "./ListView.module.css";
 
 /**

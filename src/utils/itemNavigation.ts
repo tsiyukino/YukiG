@@ -1,19 +1,17 @@
 /**
  * Resolves where clicking an item should navigate.
  *
- * Centralizes the "which route for this item" decision so every surface
- * (home, search, tags, tray) behaves the same. Steam games open on the Steam
- * page; a filed item opens its detail page under its collection; an un-filed
- * library item (no collection, e.g. an un-imported Steam game surfaced
- * elsewhere) also routes to the Steam page rather than a dead
- * `/collections/null/...` URL.
+ * The item's source is its `strategy_type` (`steam_game` = Steam, `game` =
+ * local, etc.) — one strategy per platform — so that alone decides the route,
+ * not whether it happens to be filed in a collection. Steam games open on the
+ * Steam page; every other item opens the standalone detail page, which works
+ * whether or not the item belongs to a group.
  */
 import type { NavigateOptions, To } from "react-router-dom";
 
 /** Minimal shape needed to route an item. */
 interface RoutableItem {
   id: string;
-  collection_id: string | null;
   strategy_type: string;
 }
 
@@ -24,12 +22,11 @@ export interface ItemRoute {
 }
 
 /**
- * Returns the navigation target for an item, or the Steam page as a fallback
- * when the item has no collection to open under.
+ * Returns the navigation target for an item.
  */
 export function itemRoute(item: RoutableItem): ItemRoute {
-  if (item.strategy_type === "steam_game" || !item.collection_id) {
+  if (item.strategy_type === "steam_game") {
     return { to: "/steam", options: { state: { openItemId: item.id } } };
   }
-  return { to: `/collections/${item.collection_id}/items/${item.id}` };
+  return { to: `/items/${item.id}` };
 }

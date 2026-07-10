@@ -82,7 +82,7 @@ pub fn item_create(
     db: State<DbConnection>,
     registry: State<StrategyRegistry>,
     app: AppHandle,
-    collection_id: String,
+    collection_id: Option<String>,
     name: String,
     folder_path: String,
     strategy_type: String,
@@ -104,7 +104,7 @@ pub fn item_create(
     };
 
     let input = NewItem {
-        collection_id: Some(collection_id),
+        collection_id,
         parent_id,
         name,
         folder_path: folder_path.clone(),
@@ -249,6 +249,27 @@ pub fn item_get_all_favorites(db: State<DbConnection>) -> Result<Vec<item_querie
 pub fn item_get_all_games_full(db: State<DbConnection>) -> Result<Vec<item_queries::FavoriteItem>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     item_queries::get_all_games_full(&conn).map_err(|e| e.to_string())
+}
+
+/// Returns root games not filed in any collection (the library root).
+#[tauri::command]
+pub fn item_get_ungrouped(db: State<DbConnection>) -> Result<Vec<item_queries::FavoriteItem>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    item_queries::get_ungrouped_games(&conn).map_err(|e| e.to_string())
+}
+
+/// Moves an item into a collection, or unfiles it when `collection_id` is null.
+///
+/// Backs dragging a game between the unfiled column and a collection.
+#[tauri::command]
+pub fn item_set_collection(
+    db: State<DbConnection>,
+    item_id: String,
+    collection_id: Option<String>,
+) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    item_queries::set_collection(&conn, &item_id, collection_id.as_deref())
+        .map_err(|e| e.to_string())
 }
 
 /// Returns all items in a collection where `is_favorite = 1`, regardless of nesting depth.

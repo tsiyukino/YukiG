@@ -4,7 +4,7 @@
 import { useNavigate } from "react-router-dom";
 import { useCollections } from "@/hooks/useCollections";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
-import { isPlatformCollection } from "@/utils/groupingTag";
+import { isPlatformCollection } from "@/utils/collectionSource";
 import styles from "./TableView.module.css";
 
 /**

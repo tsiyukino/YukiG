@@ -79,6 +79,7 @@ function AnimatedRoutes() {
         <Route path="/tags" element={<TagsPage />} />
         <Route path="/collections/:id" element={<CollectionPage />} />
         <Route path="/collections/:id/items/:itemId" element={<ItemDetailPage />} />
+        <Route path="/items/:itemId" element={<ItemDetailPage />} />
         <Route path="/status" element={<StatusPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>

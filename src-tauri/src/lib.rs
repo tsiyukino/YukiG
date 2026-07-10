@@ -114,6 +114,8 @@ pub fn run() {
             item_get_favorites,
             item_get_all_favorites,
             item_get_all_games_full,
+            item_get_ungrouped,
+            item_set_collection,
             folder_delete,
             // Tag commands
             tag_get_item_counts,

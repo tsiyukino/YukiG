@@ -11,12 +11,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Collection, NewCollection, UpdateCollection } from "@/types/collection";
 import {
-  tagGetGrouping,
+  collectionGetAll,
   collectionCreate,
   collectionUpdate,
   collectionDelete,
 } from "@/services/tauriCommands";
-import { groupingTagToCollection } from "@/utils/groupingTag";
 
 // ─── Module-level cache ───────────────────────────────────────────────────────
 
@@ -36,8 +35,7 @@ async function fetchCollections(): Promise<Collection[]> {
   if (_cache && Date.now() - _cacheAt < CACHE_TTL_MS) return _cache;
   if (_inflight) return _inflight;
 
-  _inflight = tagGetGrouping().then((tags) => {
-    const data = tags.map(groupingTagToCollection);
+  _inflight = collectionGetAll().then((data) => {
     _cache = data;
     _cacheAt = Date.now();
     _inflight = null;

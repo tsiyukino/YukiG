@@ -22,7 +22,8 @@ import form from "@/styles/form.module.css";
 import styles from "./AddItemModal.module.css";
 
 interface AddItemModalProps {
-  collectionId: string;
+  /** Collection to file under, or null to add to the library ungrouped. */
+  collectionId: string | null;
   defaultStrategy?: string;
   /** If set, new items are created as children of this parent (virtual_folder or virtual_group). */
   parentId?: string | null;
@@ -77,9 +78,12 @@ export default function AddItemModal({
           <button className={mode === "item" ? `${styles.tab} ${styles.tabActive}` : styles.tab} onClick={() => switchMode("item")}>
             Add Item
           </button>
-          <button className={mode === "groups" ? `${styles.tab} ${styles.tabActive}` : styles.tab} onClick={() => switchMode("groups")}>
-            Organise
-          </button>
+          {/* Virtual folders/groups belong to a collection — hide when ungrouped. */}
+          {collectionId !== null && (
+            <button className={mode === "groups" ? `${styles.tab} ${styles.tabActive}` : styles.tab} onClick={() => switchMode("groups")}>
+              Organise
+            </button>
+          )}
           <div className={styles.tabBarClose}>
             <button className={styles.close} onClick={onClose}><X size={14} /></button>
           </div>
@@ -113,8 +117,6 @@ export default function AddItemModal({
                   strategyType={flow.strategyType}
                   onStrategyChange={flow.setStrategyType}
                   strategies={flow.strategies}
-                  collectionId={flow.collectionId}
-                  onCollectionChange={flow.setCollectionId}
                 />
               )}
               {step === "metadata" && (
@@ -186,7 +188,7 @@ export default function AddItemModal({
                   label={groupsView === "virtual_folder" ? "Folder" : "Group"}
                   placeholder={groupsView === "virtual_folder" ? "e.g. Action Games, 2024 Papers" : "e.g. Favorites, In Progress"}
                   strategyType={groupsView}
-                  collectionId={flow.collectionId}
+                  collectionId={flow.collectionId ?? ""}
                   parentId={parentId}
                   onBack={() => { setGroupsView("menu"); flow.setError(null); }}
                   onCreated={onSuccess}

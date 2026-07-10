@@ -22,7 +22,8 @@ export type PickMode = "folder" | "file";
 const MAX_SUGGEST_DEPTH = 4;
 
 interface AddItemFlowArgs {
-  collectionId: string;
+  /** Collection to file under, or null to add to the library ungrouped. */
+  collectionId: string | null;
   defaultStrategy: string;
   parentId: string | null;
   /** Pre-filled path (drag-and-drop) — skips the pick step. */
@@ -131,7 +132,7 @@ export function useAddItemFlow({ collectionId: collectionIdProp, defaultStrategy
   }
 
   function detailsNext() {
-    if (!collectionId) { setError("Select a collection."); return; }
+    // A null collectionId is valid: the item is added to the library ungrouped.
     if (!name.trim()) { setError("Name is required."); return; }
     // File pickMode auto-sets strategyType to "file" — no dropdown shown.
     if (pickMode !== "file" && !strategyType) { setError("Select a type."); return; }

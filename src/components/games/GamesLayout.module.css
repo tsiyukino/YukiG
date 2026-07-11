@@ -1,0 +1,17 @@
+/* Positioning context for the overlaid unfiled panel. */
+.area {
+  position: relative;
+}
+
+/* The child's body region reserves room on the right for the unfiled panel.
+   The header lives outside this class, so it stays full width and the panel
+   only occupies the body. The reservation animates with the collapse. */
+.body {
+  padding-right: 260px;
+  transition: padding-right var(--transition, 200ms) ease;
+}
+
+.bodyCollapsed {
+  /* Leave room only for the bookmark handle (14px). */
+  padding-right: 14px;
+}

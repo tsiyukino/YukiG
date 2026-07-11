@@ -84,3 +84,19 @@
   background: var(--color-accent-light);
   color: var(--color-accent);
 }
+
+/* Body split: reserve room on the right for the persistent unfiled column,
+   below the collection header. Animates with the column's collapse. */
+.split {
+  position: relative;
+  padding-right: 260px;
+  transition: padding-right var(--transition, 200ms) ease;
+}
+
+.splitCollapsed {
+  padding-right: 14px;
+}
+
+.splitMain {
+  min-width: 0;
+}

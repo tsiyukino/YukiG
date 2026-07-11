@@ -16,6 +16,13 @@
   transform: translateX(246px);
 }
 
+/* Highlight the whole column as a drop target when unfiling a dragged game. */
+.dropTarget .body {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
 /* Bookmark handle: a tab at the panel's left-edge strip, no divider line. */
 .handle {
   position: absolute;

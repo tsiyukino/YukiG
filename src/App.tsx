@@ -4,6 +4,7 @@ import AppShell from "./components/layout/AppShell";
 import HomePage from "./pages/HomePage";
 import GamesPage from "./pages/GamesPage";
 import CollectionPage from "./pages/CollectionPage";
+import GamesLayout from "./components/games/GamesLayout";
 import ItemDetailPage from "./pages/ItemDetailPage";
 import SettingsPage from "./pages/SettingsPage";
 import SearchPage from "./pages/SearchPage";
@@ -72,12 +73,14 @@ function AnimatedRoutes() {
     <div ref={ref} className="page-padded">
       <Routes location={location}>
         <Route path="/" element={<HomePage />} />
-        <Route path="/games" element={<GamesPage />} />
+        <Route element={<GamesLayout />}>
+          <Route path="/games" element={<GamesPage />} />
+          <Route path="/collections/:id" element={<CollectionPage />} />
+        </Route>
         <Route path="/play" element={<PlayPage />} />
         <Route path="/steam" element={<SteamPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/tags" element={<TagsPage />} />
-        <Route path="/collections/:id" element={<CollectionPage />} />
         <Route path="/collections/:id/items/:itemId" element={<ItemDetailPage />} />
         <Route path="/items/:itemId" element={<ItemDetailPage />} />
         <Route path="/status" element={<StatusPage />} />

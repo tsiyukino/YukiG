@@ -16,6 +16,7 @@ import { readAppPrefs } from "@/hooks/useAppPrefs";
 import { useCollectionBrowse } from "@/hooks/useCollectionBrowse";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { useCollectionDnd } from "@/hooks/useCollectionDnd";
+import { useGamesArea } from "@/components/games/GamesLayout";
 import { collectionUpdate, itemDelete, itemGetById, folderDelete } from "@/services/tauriCommands";
 import { NewCollection } from "@/types/collection";
 import { Item } from "@/types/item";
@@ -37,6 +38,7 @@ import styles from "./CollectionPage.module.css";
 export default function CollectionPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { collapsed, UnfiledColumn } = useGamesArea();
 
   const browse = useCollectionBrowse(id!);
   const {
@@ -131,6 +133,8 @@ export default function CollectionPage() {
           onAdd={() => setShowAddModal(true)}
         />
 
+        <div className={collapsed ? `${styles.split} ${styles.splitCollapsed}` : styles.split}>
+        <div className={styles.splitMain}>
         {isAtRoot && collectionTags.length > 0 && (
           <TagFilterBar
             tags={collectionTags}
@@ -200,6 +204,9 @@ export default function CollectionPage() {
             Drop here to move to root level
           </div>
         )}
+        </div>
+          <UnfiledColumn />
+        </div>
 
         <CollectionModals
           collection={collection}

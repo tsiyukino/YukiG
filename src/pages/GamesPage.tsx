@@ -1,9 +1,9 @@
 /**
- * Games page — browse all libraries as a card grid, compact grid,
- * expandable list, or table. The active view persists in localStorage
- * and falls back to the app preference default.
+ * Games page — browse all collections as a card grid, compact grid,
+ * expandable list, or table. Rendered inside GamesLayout, which supplies the
+ * persistent unfiled column; this component owns only the collection content.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LayoutGrid, List, LayoutList, Table2, Plus } from "lucide-react";
 import { readAppPrefs } from "@/hooks/useAppPrefs";
 import PageTitle from "@/components/common/PageTitle";
@@ -12,9 +12,8 @@ import CardView from "@/components/games/CardView";
 import CompactView from "@/components/games/CompactView";
 import ListView from "@/components/games/ListView";
 import TableView from "@/components/games/TableView";
-import UnfiledPanel from "@/components/games/UnfiledPanel";
+import { useGamesArea } from "@/components/games/GamesLayout";
 import AddItemModal from "@/pages/AddItemModal";
-import { useUngrouped } from "@/hooks/useUngrouped";
 import styles from "./GamesPage.module.css";
 
 type ViewMode = "card" | "compact" | "list" | "table";
@@ -30,29 +29,24 @@ const VIEW_OPTIONS: ViewOption<ViewMode>[] = [
  * Displays all collections in the selected view, with create/delete actions.
  */
 export default function GamesPage() {
+  const { fileGame, onReload, collapsed, UnfiledColumn } = useGamesArea();
   const [view, setView] = useState<ViewMode>(
     () => (localStorage.getItem("games-view") as ViewMode | null) ?? readAppPrefs().defaultGamesView
   );
   const [showAdd, setShowAdd] = useState(false);
-  // Bump to force the active view to reload after adding or filing a game.
+  // Bump to reload the active view after adding or filing a game.
   const [reloadKey, setReloadKey] = useState(0);
-  const [unfiledCollapsed, setUnfiledCollapsed] = useState(false);
-  const unfiled = useUngrouped();
+
+  // Reload when a game is filed/unfiled from anywhere in the games area.
+  useEffect(() => onReload(() => setReloadKey((k) => k + 1)), [onReload]);
 
   function handleSetView(v: ViewMode) {
     localStorage.setItem("games-view", v);
     setView(v);
   }
 
-  /** Files a game into a collection, then refreshes both columns. */
-  async function fileGame(itemId: string, collectionId: string) {
-    await unfiled.fileInto(itemId, collectionId);
-    setReloadKey((k) => k + 1);
-  }
-
   function afterAdd() {
     setShowAdd(false);
-    unfiled.refresh();
     setReloadKey((k) => k + 1);
   }
 
@@ -72,19 +66,14 @@ export default function GamesPage() {
         }
       />
 
-      <div className={unfiledCollapsed ? `${styles.split} ${styles.splitCollapsed}` : styles.split}>
+      <div className={collapsed ? `${styles.split} ${styles.splitCollapsed}` : styles.split}>
         <div className={styles.main} key={reloadKey}>
-          {view === "card" && <CardView onFileGame={fileGame} />}
-          {view === "compact" && <CompactView />}
+          {view === "card" && <CardView onFileGame={(itemId, cid) => fileGame(itemId, cid)} />}
+          {view === "compact" && <CompactView onFileGame={(itemId, cid) => fileGame(itemId, cid)} />}
           {view === "list" && <ListView />}
-          {view === "table" && <TableView />}
+          {view === "table" && <TableView onFileGame={(itemId, cid) => fileGame(itemId, cid)} />}
         </div>
-        <UnfiledPanel
-          games={unfiled.games}
-          loading={unfiled.loading}
-          collapsed={unfiledCollapsed}
-          onToggleCollapsed={() => setUnfiledCollapsed((c) => !c)}
-        />
+        <UnfiledColumn />
       </div>
 
       {showAdd && (

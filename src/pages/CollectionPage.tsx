@@ -10,7 +10,7 @@
  * useBulkActions (selection + bulk mutations), useCollectionDnd (drag state).
  */
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FolderOpen } from "lucide-react";
 import { readAppPrefs } from "@/hooks/useAppPrefs";
 import { useCollectionBrowse } from "@/hooks/useCollectionBrowse";
@@ -38,7 +38,7 @@ import styles from "./CollectionPage.module.css";
 export default function CollectionPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { collapsed, UnfiledColumn } = useGamesArea();
+  const { collapsed, UnfiledColumn, onReload, fileGame } = useGamesArea();
 
   const browse = useCollectionBrowse(id!);
   const {
@@ -48,8 +48,13 @@ export default function CollectionPage() {
     visibleItems, virtualGroups, favoriteItems, openVirtualFolder, navigateUp, refreshCurrent,
   } = browse;
 
+  // Refresh this collection's items when a game is filed/unfiled from anywhere
+  // in the games area (e.g. dragged out to the unfiled column).
+  useEffect(() => onReload(() => { refreshCurrent(); refreshRoot(); }), [onReload, refreshCurrent, refreshRoot]);
+
   const [groupRefreshKey, setGroupRefreshKey] = useState(0);
   const bumpGroups = () => setGroupRefreshKey((k) => k + 1);
+  const [fileHover, setFileHover] = useState(false);
 
   const bulk = useBulkActions({ visibleItems, itemTagMap, refreshCurrent, refreshTags });
   const dnd = useCollectionDnd({
@@ -134,7 +139,28 @@ export default function CollectionPage() {
         />
 
         <div className={collapsed ? `${styles.split} ${styles.splitCollapsed}` : styles.split}>
-        <div className={styles.splitMain}>
+        <div
+          className={fileHover ? `${styles.splitMain} ${styles.fileHover}` : styles.splitMain}
+          onDragOver={(e) => {
+            // Accept only unfiled-panel drags (they carry the item mime but not
+            // text/plain, which internal reorder drags set); this files the game
+            // into the current collection.
+            const t = e.dataTransfer.types;
+            if (t.includes("application/x-yukig-item") && !t.includes("text/plain")) {
+              e.preventDefault();
+              setFileHover(true);
+            }
+          }}
+          onDragLeave={() => setFileHover(false)}
+          onDrop={(e) => {
+            const t = e.dataTransfer.types;
+            if (t.includes("application/x-yukig-item") && !t.includes("text/plain")) {
+              const itemId = e.dataTransfer.getData("application/x-yukig-item");
+              setFileHover(false);
+              if (itemId) { e.preventDefault(); fileGame(itemId, id!); }
+            }
+          }}
+        >
         {isAtRoot && collectionTags.length > 0 && (
           <TagFilterBar
             tags={collectionTags}

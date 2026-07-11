@@ -332,13 +332,15 @@ pub fn get_ungrouped_games(conn: &Connection) -> Result<Vec<FavoriteItem>> {
 /// Moves an item into a collection, or unfiles it when `collection_id` is None.
 ///
 /// This is the storage-location change behind dragging a game between the
-/// unfiled column and a collection (folder-storage model).
+/// unfiled column and a collection (folder-storage model). `parent_id` is
+/// cleared too: a moved item lands at the collection's (or library) root, never
+/// stranded inside a virtual folder of its old location.
 ///
 /// # Errors
 /// Returns a `rusqlite::Error` if the update fails.
 pub fn set_collection(conn: &Connection, item_id: &str, collection_id: Option<&str>) -> Result<()> {
     conn.execute(
-        "UPDATE items SET collection_id = ?1, updated_at = datetime('now') WHERE id = ?2",
+        "UPDATE items SET collection_id = ?1, parent_id = NULL, updated_at = datetime('now') WHERE id = ?2",
         rusqlite::params![collection_id, item_id],
     )?;
     Ok(())
@@ -470,5 +472,31 @@ mod tests {
         let cid2: Option<String> = conn
             .query_row("SELECT collection_id FROM items WHERE id = 'g1'", [], |r| r.get(0)).unwrap();
         assert_eq!(cid2, None);
+    }
+
+    #[test]
+    fn set_collection_clears_parent_id() {
+        let conn = test_db();
+        // A virtual folder and a game nested inside it (parent_id set).
+        conn.execute(
+            "INSERT INTO items (id, collection_id, name, folder_path, strategy_type, created_at, updated_at)
+             VALUES ('folder1', 'c1', 'Folder', 'C:/g', 'virtual_folder', 't', 't')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO items (id, collection_id, parent_id, name, folder_path, strategy_type, created_at, updated_at)
+             VALUES ('child', 'c1', 'folder1', 'child', 'C:/g', 'game', 't', 't')",
+            [],
+        ).unwrap();
+
+        // Filing it elsewhere moves it to that collection's root, not a stranded folder.
+        set_collection(&conn, "child", None).unwrap();
+        let parent: Option<String> = conn
+            .query_row("SELECT parent_id FROM items WHERE id = 'child'", [], |r| r.get(0)).unwrap();
+        assert_eq!(parent, None, "parent_id must be cleared on move");
+
+        // And it now shows in the ungrouped list.
+        let ids: Vec<String> = get_ungrouped_games(&conn).unwrap().into_iter().map(|g| g.item.id).collect();
+        assert!(ids.contains(&"child".to_string()));
     }
 }

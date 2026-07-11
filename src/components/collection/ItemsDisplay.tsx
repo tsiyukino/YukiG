@@ -99,7 +99,13 @@ export default function ItemsDisplay({
             {showSlotBefore && <div className={styles.dropSlot} />}
             <div
               draggable
-              onDragStart={(e) => { e.dataTransfer.setData("text/plain", item.id); dnd.startItemDrag(item, index, currentFolderId); }}
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", item.id);
+                // Also tag with the games-area mime so the unfiled column
+                // recognizes it as a filable game and accepts a drop to unfile.
+                e.dataTransfer.setData("application/x-yukig-item", item.id);
+                dnd.startItemDrag(item, index, currentFolderId);
+              }}
               onDragEnter={(e) => { e.preventDefault(); dnd.hoverItem(item, index, folder); }}
               onDragOver={(e) => e.preventDefault()}
               onDragEnd={dnd.endItemDrag}

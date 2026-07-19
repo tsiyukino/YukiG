@@ -94,27 +94,6 @@ pub fn get_by_collection(conn: &Connection, collection_id: &str) -> Result<Vec<I
     rows.collect()
 }
 
-/// Returns all root items tagged with `tag_id`, ordered like a collection.
-///
-/// The grouping-tag equivalent of `get_by_collection`: an item belongs to a
-/// group when it has an `item_tags` row for that group's tag.
-///
-/// # Errors
-/// Returns a `rusqlite::Error` if the query fails.
-pub fn get_by_tag(conn: &Connection, tag_id: &str) -> Result<Vec<Item>> {
-    let mut stmt = conn.prepare(
-        "SELECT i.id, i.collection_id, i.parent_id, i.name, i.folder_path, i.strategy_type, i.category,
-                i.description, i.notes, i.thumbnail_path, i.sort_order, i.is_favorite, i.created_at, i.updated_at
-         FROM items i
-         JOIN item_tags it ON it.item_id = i.id
-         WHERE it.tag_id = ?1 AND i.parent_id IS NULL
-         ORDER BY i.sort_order ASC, i.name ASC",
-    )?;
-
-    let rows = stmt.query_map([tag_id], map_row)?;
-    rows.collect()
-}
-
 /// Retrieves all child items of a given parent item (virtual_folder or virtual_group),
 /// ordered by sort_order then name.
 ///

@@ -35,23 +35,6 @@ export async function tagGetAll(): Promise<Tag[]> {
 }
 
 /**
- * Returns all grouping tags (the successor to collections) in manual order.
- * @throws {string} If the query fails
- */
-export async function tagGetGrouping(): Promise<Tag[]> {
-  return invoke("tag_get_grouping");
-}
-
-/**
- * Returns the root game items belonging to a grouping tag.
- * @param tagId - The grouping tag's id
- * @throws {string} If the query fails
- */
-export async function tagGetGames(tagId: string): Promise<Item[]> {
-  return invoke("tag_get_games", { tagId });
-}
-
-/**
  * Creates a new tag.
  * @param name - Unique tag name
  * @param color - Hex color string
@@ -171,14 +154,6 @@ export async function tagSetGroup(tagId: string, groupId: string | null): Promis
  */
 export async function tagGetItems(tagId: string): Promise<Item[]> {
   return invoke("tag_get_items", { tagId });
-}
-
-/**
- * Bulk-updates sort_order for multiple tags in one transaction.
- * @param order - Array of [id, sortOrder] pairs
- */
-export async function tagReorder(order: [string, number][]): Promise<void> {
-  return invoke("tag_reorder", { order });
 }
 
 // ─── Tag Groups ───────────────────────────────────────────────────────────────

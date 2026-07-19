@@ -22,8 +22,20 @@ Single `Mutex<Connection>` stored as Tauri managed state (`DbConnection`). WAL m
 | `001_initial.sql` | Applied | Core tables + FTS5 triggers |
 | `002_collection_default_strategy.sql` | Applied | `default_strategy` column on collections |
 | `003_item_notes.sql` | Applied | `notes TEXT NOT NULL DEFAULT ''` column on items |
+| `004_rebuild_fts.sql` | Applied | Rebuild FTS index |
+| `005_fix_fts.sql` | Applied | Recreate `fts_items` as a standalone table + new triggers |
+| `006_tag_groups.sql` | Applied | `tag_groups` table + `group_id` column on tags |
+| `007_item_parent.sql` | Applied | `parent_id` column on items (virtual folders/groups) |
+| `008_item_category.sql` | Applied | `category` column on items |
+| `009_item_favorite.sql` | Applied | `is_favorite` column on items |
+| `010_steam_games.sql` | Applied | `steam_imports` table |
 | `011_play_sessions.sql` | Applied | `play_sessions` table |
 | `012_game_status.sql` | Applied | `game_status` table + `tag_type` column on `tags` |
+| `013_nullable_collection.sql` | Applied | Items rebuild: `collection_id` nullable (NULL = unfiled), FK → SET NULL |
+| `014_steam_system_collection.sql` | Applied | Fixed system "Steam" collection (`id = 'steam-system'`) |
+| `015_collections_to_grouping_tags.sql` | Applied | Mirrored collections into `grouping` tags (direction later reverted) |
+| `016_demote_steam_collection_groupings.sql` | Applied | Demoted legacy "Steam collection:" groupings to regular tags |
+| `017_remove_grouping_tags.sql` | Applied | Removed grouping tags and the `icon`/`description`/`sort_order` tag columns (015 revert) |
 
 ## Schema
 
@@ -73,6 +85,18 @@ Single `Mutex<Connection>` stored as Tauri managed state (`DbConnection`). WAL m
 | id | TEXT | PRIMARY KEY | UUID v4 |
 | name | TEXT | NOT NULL, UNIQUE | Tag display name |
 | color | TEXT | NOT NULL DEFAULT '#94a3b8' | Hex color |
+| group_id | TEXT | NULL, FK → tag_groups.id SET NULL | Owning tag group, NULL = ungrouped |
+| tag_type | TEXT | NOT NULL DEFAULT 'regular' | `regular \| category \| functional \| element \| mood` |
+
+### tag_groups
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | UUID v4 |
+| name | TEXT | NOT NULL, UNIQUE | Group display name |
+| prefix | TEXT | NOT NULL DEFAULT '' | Free-form prefix string (e.g. "genre:") |
+| sort_order | INTEGER | NOT NULL DEFAULT 0 | Manual sort position |
+| created_at | TEXT | NOT NULL | ISO 8601 |
 
 ### item_tags
 
@@ -99,10 +123,6 @@ Single `Mutex<Connection>` stored as Tauri managed state (`DbConnection`). WAL m
 | story_status | TEXT | NOT NULL DEFAULT 'unplayed' | `unplayed \| playing \| on_hold \| snoozed \| completed \| abandoned` |
 | online_status | TEXT | NOT NULL DEFAULT 'inactive' | `inactive \| active \| snoozed` |
 | snooze_until | TEXT | NULL | ISO 8601; only meaningful when snoozed |
-
-### tags (updated)
-
-Added `tag_type TEXT NOT NULL DEFAULT 'regular'` column. Values: `'regular'` (normal tag) or `'mood'` (Play-page mood filter).
 
 ### fts_items (FTS5 virtual table)
 

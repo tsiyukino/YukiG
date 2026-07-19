@@ -78,7 +78,7 @@ fn search_collections(conn: &Connection, query: &str) -> Result<Vec<Collection>>
 fn search_tags(conn: &Connection, query: &str) -> Result<Vec<Tag>> {
     let pattern = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
     let mut stmt = conn.prepare(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE name LIKE ?1 ESCAPE '\\' ORDER BY name ASC LIMIT 20",
+        "SELECT id, name, color, group_id, tag_type FROM tags WHERE name LIKE ?1 ESCAPE '\\' ORDER BY name ASC LIMIT 20",
     )?;
     let rows = stmt.query_map([&pattern], |row| {
         Ok(Tag {
@@ -87,9 +87,6 @@ fn search_tags(conn: &Connection, query: &str) -> Result<Vec<Tag>> {
             color: row.get(2)?,
             group_id: row.get(3)?,
             tag_type: row.get(4)?,
-            icon: row.get(5)?,
-            description: row.get(6)?,
-            sort_order: row.get(7)?,
         })
     })?;
     rows.collect()

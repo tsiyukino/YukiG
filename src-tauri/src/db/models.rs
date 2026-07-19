@@ -62,14 +62,8 @@ pub struct Tag {
     pub color: String,
     /// The group this tag belongs to, or None if ungrouped.
     pub group_id: Option<String>,
-    /// Tag kind: `grouping` / `category` / `functional` / `element` / `mood` / `regular`.
+    /// Tag kind: `category` / `functional` / `element` / `mood` / `regular`.
     pub tag_type: String,
-    /// Icon identifier, used by grouping tags (successor to collection icon). Empty otherwise.
-    pub icon: String,
-    /// Optional description, used by grouping tags. Empty otherwise.
-    pub description: String,
-    /// Manual sort position, used by grouping tags. 0 otherwise.
-    pub sort_order: i64,
 }
 
 /// A named group of tags with a user-defined prefix string.

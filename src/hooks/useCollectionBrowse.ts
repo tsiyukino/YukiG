@@ -73,7 +73,7 @@ export function useCollectionBrowse(collectionId: string) {
     const map = new Map<string, Tag[]>();
     for (const row of itemTagRows) {
       const existing = map.get(row.item_id) ?? [];
-      existing.push({ id: row.tag_id, name: row.tag_name, color: row.tag_color, group_id: null, tag_type: "regular", icon: "", description: "", sort_order: 0 });
+      existing.push({ id: row.tag_id, name: row.tag_name, color: row.tag_color, group_id: null, tag_type: "regular" });
       map.set(row.item_id, existing);
     }
     return map;
@@ -83,7 +83,7 @@ export function useCollectionBrowse(collectionId: string) {
     const seen = new Map<string, Tag>();
     for (const row of itemTagRows) {
       if (!seen.has(row.tag_id)) {
-        seen.set(row.tag_id, { id: row.tag_id, name: row.tag_name, color: row.tag_color, group_id: null, tag_type: "regular", icon: "", description: "", sort_order: 0 });
+        seen.set(row.tag_id, { id: row.tag_id, name: row.tag_name, color: row.tag_color, group_id: null, tag_type: "regular" });
       }
     }
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));

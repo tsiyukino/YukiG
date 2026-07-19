@@ -59,6 +59,7 @@ fn all_migrations() -> Vec<(&'static str, &'static str)> {
         ("014_steam_system_collection", include_str!("../../migrations/014_steam_system_collection.sql")),
         ("015_collections_to_grouping_tags", include_str!("../../migrations/015_collections_to_grouping_tags.sql")),
         ("016_demote_steam_collection_groupings", include_str!("../../migrations/016_demote_steam_collection_groupings.sql")),
+        ("017_remove_grouping_tags", include_str!("../../migrations/017_remove_grouping_tags.sql")),
     ]
 }
 
@@ -312,6 +313,76 @@ mod tests {
         let steam_type: String = conn
             .query_row("SELECT tag_type FROM tags WHERE id = 'steam-system'", [], |r| r.get(0)).unwrap();
         assert_eq!(steam_type, "grouping");
+    }
+
+    /// Migration 017 deletes collection-mirror grouping tags (and their
+    /// memberships), demotes promoted user tags back to regular with their
+    /// memberships intact, and drops the grouping-only columns.
+    #[test]
+    fn migration_017_removes_grouping_tags() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        ensure_migrations_table(&conn).unwrap();
+        for (name, sql) in all_migrations() {
+            if name == "017_remove_grouping_tags" {
+                break;
+            }
+            apply(&conn, name, sql).unwrap();
+        }
+
+        // State as left by 015/016: 'c1' is a mirror tag (id matches the
+        // collection), 't-rpg' is a pre-existing user tag promoted to grouping
+        // (id does not match), and 't-mood' is unrelated. The 'steam-system'
+        // mirror tag already exists — 015 ran in the loop above with the system
+        // collection from 014 in place.
+        conn.execute_batch(
+            "INSERT INTO collections (id, name, icon, color, description, sort_order, created_at, updated_at)
+             VALUES ('c1', 'Indie', 'star', '#0f0', '', 0, 't', 't'),
+                    ('c2', 'RPGs', 'sword', '#f00', '', 1, 't', 't');
+             INSERT INTO tags (id, name, color, group_id, tag_type, icon, description, sort_order) VALUES
+                ('c1', 'Indie', '#0f0', NULL, 'grouping', 'star', '', 0),
+                ('t-rpg', 'RPGs', '#f00', NULL, 'grouping', 'sword', '', 1),
+                ('t-mood', 'Cozy', '#999', NULL, 'mood', '', '', 0);
+             INSERT INTO items (id, collection_id, name, folder_path, strategy_type, created_at, updated_at)
+             VALUES ('i1', 'c1', 'Celeste', 'C:/c', 'game', 't', 't');
+             INSERT INTO item_tags (item_id, tag_id) VALUES
+                ('i1', 'c1'), ('i1', 't-rpg'), ('i1', 'steam-system'), ('i1', 't-mood');",
+        ).unwrap();
+
+        let sql = all_migrations().into_iter()
+            .find(|(n, _)| *n == "017_remove_grouping_tags").unwrap().1;
+        apply(&conn, "017_remove_grouping_tags", sql).unwrap();
+
+        // Mirror tags are gone along with their memberships.
+        for gone in ["c1", "steam-system"] {
+            let tags: i64 = conn
+                .query_row("SELECT COUNT(*) FROM tags WHERE id = ?1", [gone], |r| r.get(0)).unwrap();
+            assert_eq!(tags, 0, "mirror tag {gone} must be deleted");
+            let members: i64 = conn
+                .query_row("SELECT COUNT(*) FROM item_tags WHERE tag_id = ?1", [gone], |r| r.get(0)).unwrap();
+            assert_eq!(members, 0, "membership of mirror tag {gone} must be deleted");
+        }
+
+        // The promoted user tag is demoted, keeping its membership.
+        let rpg_type: String = conn
+            .query_row("SELECT tag_type FROM tags WHERE id = 't-rpg'", [], |r| r.get(0)).unwrap();
+        assert_eq!(rpg_type, "regular");
+        let rpg_members: i64 = conn
+            .query_row("SELECT COUNT(*) FROM item_tags WHERE tag_id = 't-rpg'", [], |r| r.get(0)).unwrap();
+        assert_eq!(rpg_members, 1, "demoted tag keeps its membership");
+
+        // Unrelated tags survive the table rebuild untouched.
+        let mood_type: String = conn
+            .query_row("SELECT tag_type FROM tags WHERE id = 't-mood'", [], |r| r.get(0)).unwrap();
+        assert_eq!(mood_type, "mood");
+
+        // The grouping-only columns are gone from the rebuilt table.
+        for col in ["icon", "description", "sort_order"] {
+            let present: i64 = conn
+                .query_row("SELECT COUNT(*) FROM pragma_table_info('tags') WHERE name = ?1", [col], |r| r.get(0))
+                .unwrap();
+            assert_eq!(present, 0, "column {col} must be dropped");
+        }
     }
 
     /// A migration that leaves a dangling foreign key must roll back and not be

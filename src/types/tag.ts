@@ -6,8 +6,6 @@
 /**
  * Kind of tag, which drives how it is displayed and where it appears.
  *
- * - `grouping`   — user's organisational groups (the successor to collections);
- *                  rendered with cover art on the home page.
  * - `category`   — genre-like classification (Simulation, ARPG, Strategy).
  * - `functional` — capability/feature tags (Co-op, Multiplayer, Steam Cloud).
  * - `element`    — thematic tags (Tragedy, Comedy, Philosophy, Art).
@@ -15,7 +13,6 @@
  * - `regular`    — legacy/uncategorised tags (default before types existed).
  */
 export type TagType =
-  | "grouping"
   | "category"
   | "functional"
   | "element"
@@ -31,12 +28,6 @@ export interface Tag {
   group_id: string | null;
   /** What kind of tag this is; drives display and placement. */
   tag_type: TagType;
-  /** Icon identifier for grouping tags (successor to collection icon). Empty otherwise. */
-  icon: string;
-  /** Optional description for grouping tags. Empty otherwise. */
-  description: string;
-  /** Manual sort position for grouping tags. 0 otherwise. */
-  sort_order: number;
 }
 
 /** A named group of tags with a user-defined prefix string. */

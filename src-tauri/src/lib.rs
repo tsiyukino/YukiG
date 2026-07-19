@@ -121,8 +121,6 @@ pub fn run() {
             tag_get_item_counts,
             tag_get_by_items_bulk,
             tag_get_all,
-            tag_get_grouping,
-            tag_get_games,
             tag_create,
             tag_create_mood,
             tag_upsert_mood,
@@ -140,7 +138,6 @@ pub fn run() {
             tag_group_update,
             tag_group_delete,
             tag_group_reorder,
-            tag_reorder,
             // Strategy commands
             strategy_list,
             strategy_scan,

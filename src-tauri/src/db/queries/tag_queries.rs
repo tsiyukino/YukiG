@@ -13,9 +13,6 @@ fn row_to_tag(row: &rusqlite::Row) -> rusqlite::Result<Tag> {
         color: row.get(2)?,
         group_id: row.get(3)?,
         tag_type: row.get(4)?,
-        icon: row.get(5)?,
-        description: row.get(6)?,
-        sort_order: row.get(7)?,
     })
 }
 
@@ -24,22 +21,9 @@ fn row_to_tag(row: &rusqlite::Row) -> rusqlite::Result<Tag> {
 /// Retrieves all tags ordered alphabetically.
 pub fn get_all(conn: &Connection) -> Result<Vec<Tag>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags ORDER BY name ASC",
+        "SELECT id, name, color, group_id, tag_type FROM tags ORDER BY name ASC",
     )?;
     let rows = stmt.query_map([], row_to_tag)?;
-    rows.collect()
-}
-
-/// Returns all tags of a given `tag_type`, ordered by sort_order then name.
-///
-/// Used to list grouping tags (the successor to collections) in their manual
-/// order for the home page and sidebars.
-pub fn get_by_type(conn: &Connection, tag_type: &str) -> Result<Vec<Tag>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order
-         FROM tags WHERE tag_type = ?1 ORDER BY sort_order ASC, name ASC",
-    )?;
-    let rows = stmt.query_map([tag_type], row_to_tag)?;
     rows.collect()
 }
 
@@ -51,7 +35,7 @@ pub fn create(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
         rusqlite::params![&id, name, color],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
         [&id],
         row_to_tag,
     )
@@ -59,8 +43,8 @@ pub fn create(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
 
 /// Creates a new tag of the given `tag_type` and returns it.
 ///
-/// The single typed-creation primitive. `tag_type` is one of `grouping`,
-/// `category`, `functional`, `element`, `mood`, or `regular`.
+/// The single typed-creation primitive. `tag_type` is one of `category`,
+/// `functional`, `element`, `mood`, or `regular`.
 pub fn create_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) -> Result<Tag> {
     let id = Uuid::new_v4().to_string();
     conn.execute(
@@ -68,7 +52,7 @@ pub fn create_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) 
         rusqlite::params![&id, name, color, tag_type],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
         [&id],
         row_to_tag,
     )
@@ -81,7 +65,7 @@ pub fn create_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) 
 /// functional / mood tags without creating duplicates.
 pub fn upsert_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) -> Result<Tag> {
     let existing = conn.query_row(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE name = ?1",
+        "SELECT id, name, color, group_id, tag_type FROM tags WHERE name = ?1",
         rusqlite::params![name],
         row_to_tag,
     );
@@ -119,7 +103,7 @@ pub fn create_in_group(conn: &Connection, name: &str, color: &str, group_id: &st
         rusqlite::params![&id, name, color, group_id],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
         [&id],
         row_to_tag,
     )
@@ -132,7 +116,7 @@ pub fn set_group(conn: &Connection, tag_id: &str, group_id: Option<&str>) -> Res
         rusqlite::params![group_id, tag_id],
     )?;
     conn.query_row(
-        "SELECT id, name, color, group_id, tag_type, icon, description, sort_order FROM tags WHERE id = ?1",
+        "SELECT id, name, color, group_id, tag_type FROM tags WHERE id = ?1",
         [tag_id],
         row_to_tag,
     )
@@ -147,7 +131,7 @@ pub fn delete(conn: &Connection, tag_id: &str) -> Result<()> {
 /// Returns all tags assigned to a specific item.
 pub fn get_by_item(conn: &Connection, item_id: &str) -> Result<Vec<Tag>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.name, t.color, t.group_id, t.tag_type, t.icon, t.description, t.sort_order
+        "SELECT t.id, t.name, t.color, t.group_id, t.tag_type
          FROM tags t
          JOIN item_tags it ON t.id = it.tag_id
          WHERE it.item_id = ?1
@@ -219,7 +203,7 @@ pub fn get_by_items_bulk(conn: &Connection, item_ids: &[String]) -> Result<Vec<(
         .join(", ");
 
     let sql = format!(
-        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type, t.icon, t.description, t.sort_order
+        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type
          FROM item_tags it
          JOIN tags t ON t.id = it.tag_id
          WHERE it.item_id IN ({})
@@ -242,9 +226,6 @@ pub fn get_by_items_bulk(conn: &Connection, item_ids: &[String]) -> Result<Vec<(
             color: row.get(3)?,
             group_id: row.get(4)?,
             tag_type: row.get(5)?,
-            icon: row.get(6)?,
-            description: row.get(7)?,
-            sort_order: row.get(8)?,
         };
         Ok((item_id, tag))
     })?;
@@ -254,7 +235,7 @@ pub fn get_by_items_bulk(conn: &Connection, item_ids: &[String]) -> Result<Vec<(
 /// Returns all (item_id, tag) pairs for items belonging to a collection.
 pub fn get_by_collection(conn: &Connection, collection_id: &str) -> Result<Vec<(String, Tag)>> {
     let mut stmt = conn.prepare(
-        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type, t.icon, t.description, t.sort_order
+        "SELECT it.item_id, t.id, t.name, t.color, t.group_id, t.tag_type
          FROM item_tags it
          JOIN tags t ON t.id = it.tag_id
          JOIN items i ON i.id = it.item_id
@@ -269,9 +250,6 @@ pub fn get_by_collection(conn: &Connection, collection_id: &str) -> Result<Vec<(
             color: row.get(3)?,
             group_id: row.get(4)?,
             tag_type: row.get(5)?,
-            icon: row.get(6)?,
-            description: row.get(7)?,
-            sort_order: row.get(8)?,
         };
         Ok((item_id, tag))
     })?;
@@ -355,22 +333,6 @@ pub fn reorder_groups(conn: &Connection, order: &[(String, i64)]) -> Result<()> 
     Ok(())
 }
 
-/// Bulk-updates sort_order for a list of tag `(id, sort_order)` pairs.
-///
-/// Used to reorder grouping tags (which carry a sort_order since migration 015).
-///
-/// # Errors
-/// Returns a `rusqlite::Error` if any update fails.
-pub fn reorder_tags(conn: &Connection, order: &[(String, i64)]) -> Result<()> {
-    for (id, sort_order) in order {
-        conn.execute(
-            "UPDATE tags SET sort_order = ?1 WHERE id = ?2",
-            rusqlite::params![sort_order, id],
-        )?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,26 +368,5 @@ mod tests {
         let conn = test_db();
         assert_eq!(upsert_mood(&conn, "Cozy", "#0f0").unwrap().tag_type, "mood");
         assert_eq!(upsert_regular(&conn, "Misc", "#0f0").unwrap().tag_type, "regular");
-    }
-
-    #[test]
-    fn get_by_type_filters_and_orders_by_sort_order() {
-        let conn = test_db();
-        create_typed(&conn, "Cat", "#0f0", "category").unwrap();
-        // Two grouping tags with explicit sort order (B before A by sort_order).
-        create_typed(&conn, "Group A", "#0f0", "grouping").unwrap();
-        create_typed(&conn, "Group B", "#0f0", "grouping").unwrap();
-        conn.execute("UPDATE tags SET sort_order = 1 WHERE name = 'Group A'", []).unwrap();
-        conn.execute("UPDATE tags SET sort_order = 0 WHERE name = 'Group B'", []).unwrap();
-
-        // Migration 015 already promoted the "Steam" system collection to a
-        // grouping tag (sort_order -1), so it sorts first. Assert on our two.
-        let grouping = get_by_type(&conn, "grouping").unwrap();
-        let ours: Vec<&str> = grouping.iter()
-            .map(|t| t.name.as_str())
-            .filter(|n| n.starts_with("Group "))
-            .collect();
-        assert_eq!(ours, vec!["Group B", "Group A"], "grouping only, by sort_order");
-        assert!(grouping.iter().all(|t| t.tag_type == "grouping"));
     }
 }

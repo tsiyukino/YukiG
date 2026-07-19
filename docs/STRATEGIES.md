@@ -25,7 +25,8 @@ pub trait FolderStrategy: Send + Sync {
 - **Scan**: Finds `.exe` files and common mod folder names at top level
 - **Display Items**: Only the exe file(s) and mod folder
 - **Launch Action**: `run_exe` — runs the configured exe via `std::process::Command`
-- **Metadata Schema**: `exe_path` (required), `mod_folder` (optional)
+- **Metadata Schema**: `exe_path` (required), `mod_folder` (optional), `screenshot_folder` (optional)
+- **Extra executables**: `extra_exes` metadata key holds a JSON array of `{"label", "path"}` objects — secondary launchers (server, config tool, …) shown on the game detail page. They launch untracked via `game_launch_extra_exe`; only the main `exe_path` counts toward playtime. Managed in both the add-item flow and the edit-item modal (`ExtraExesEditor`, fed by the shared `useGameSuggestions` exe scan).
 - **Mod folders recognized**: `mods`, `Mods`, `MODS`, `plugins`, `Plugins`, `addons`
 
 ### DocumentStrategy (`strategy_type: "document"`)

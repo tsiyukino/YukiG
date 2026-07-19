@@ -24,6 +24,9 @@ import { Item } from "@/types/item";
 import Modal from "@/components/common/Modal";
 import GroupedStrategySelect from "@/components/common/GroupedStrategySelect";
 import GameEditFields from "@/components/detail/GameEditFields";
+import ExtraExesEditor from "@/components/detail/ExtraExesEditor";
+import { ExtraExe, parseExtraExes, serializeExtraExes } from "@/utils/extraExes";
+import { useGameSuggestions } from "@/hooks/useGameSuggestions";
 import form from "@/styles/form.module.css";
 import styles from "./EditItemModal.module.css";
 
@@ -50,6 +53,10 @@ export default function EditItemModal({ item, onSave, onClose }: EditItemModalPr
   const [hasStory, setHasStory] = useState(false);
   const [hasPvp, setHasPvp] = useState(false);
   const [isLiveService, setIsLiveService] = useState(false);
+  // Extra executables (server, config tool, …) stored as JSON in strategy_metadata.
+  const [extraExes, setExtraExes] = useState<ExtraExe[]>([]);
+  // Scanned exe suggestions from the game folder, same picker as the add flow.
+  const suggest = useGameSuggestions(IS_GAME(item.strategy_type) ? item.folder_path : null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +79,7 @@ export default function EditItemModal({ item, onSave, onClose }: EditItemModalPr
           setHasStory(meta.has_story === "true");
           setHasPvp(meta.has_pvp === "true");
           setIsLiveService(meta.is_live_service === "true");
+          setExtraExes(parseExtraExes(meta.extra_exes));
         })
         .catch(() => {});
     }
@@ -96,6 +104,7 @@ export default function EditItemModal({ item, onSave, onClose }: EditItemModalPr
           has_story: hasStory ? "true" : "false",
           has_pvp: hasPvp ? "true" : "false",
           is_live_service: isLiveService ? "true" : "false",
+          extra_exes: serializeExtraExes(extraExes),
         });
       }
 
@@ -151,18 +160,31 @@ export default function EditItemModal({ item, onSave, onClose }: EditItemModalPr
         </div>
 
         {IS_GAME(item.strategy_type) && (
-          <GameEditFields
-            storyStatus={storyStatus}
-            onStoryStatusChange={setStoryStatus}
-            onlineStatus={onlineStatus}
-            onOnlineStatusChange={setOnlineStatus}
-            hasStory={hasStory}
-            onHasStoryChange={setHasStory}
-            hasPvp={hasPvp}
-            onHasPvpChange={setHasPvp}
-            isLiveService={isLiveService}
-            onIsLiveServiceChange={setIsLiveService}
-          />
+          <>
+            <GameEditFields
+              storyStatus={storyStatus}
+              onStoryStatusChange={setStoryStatus}
+              onlineStatus={onlineStatus}
+              onOnlineStatusChange={setOnlineStatus}
+              hasStory={hasStory}
+              onHasStoryChange={setHasStory}
+              hasPvp={hasPvp}
+              onHasPvpChange={setHasPvp}
+              isLiveService={isLiveService}
+              onIsLiveServiceChange={setIsLiveService}
+            />
+
+            <div className={styles.sectionLabel}>Extra Executables</div>
+            <ExtraExesEditor
+              value={extraExes}
+              onChange={setExtraExes}
+              suggestions={suggest.suggestions?.executables ?? []}
+              basePath={item.folder_path}
+              onLoadMore={suggest.loadMore}
+              loadingMore={suggest.loadingMore}
+              noMore={suggest.maxDepthReached}
+            />
+          </>
         )}
 
         {error && <div className={styles.errorBox}>{error}</div>}

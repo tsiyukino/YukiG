@@ -128,6 +128,13 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Owner**: `commands/strategy_commands.rs` (thin wrapper over `services/launcher.rs`)
 - **Note**: Folder path and strategy type are resolved from the database — the frontend passes only the item id. For `run_exe`, spawns the exe as a plain detached process (working directory = exe's folder) and measures the session via `services/process_tracker.rs`, which polls the process table once per second and follows parent-PID links until the whole tree has exited. The game is **never placed in a Job Object** and inherits nothing from YukiG, so hook-based launchers (Mod Organizer 2 / usvfs) behave exactly as if double-clicked. On completion, persists `total_playtime_seconds` (authoritative), `total_playtime_minutes` (derived), and `last_launched` (Unix seconds) to `strategy_metadata`. This is the only launch command — the untracked `strategy_execute_launch` was removed when all launch paths switched to tracked launches.
 
+### `game_launch_extra_exe`
+- **Parameters**: `exe_path: string`
+- **Returns**: `void`
+- **Errors**: Process spawn failure
+- **Owner**: `commands/strategy_commands.rs` (thin wrapper over `services/launcher.rs::launch_exe_untracked`)
+- **Note**: Launches one of a game's extra executables (from the `extra_exes` metadata: server, config tool, …) detached with the exe's folder as working directory, **without** playtime tracking. Only the main `exe_path` (via `strategy_execute_launch_tracked`) counts toward playtime.
+
 ### `strategy_get_metadata_schema`
 - **Parameters**: `strategy_type: string`
 - **Returns**: `MetadataField[]` — `{ key, label, required, field_type: "file_path" | "folder_path" | "text" }[]`

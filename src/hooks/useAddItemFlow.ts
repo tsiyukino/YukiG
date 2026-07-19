@@ -9,17 +9,14 @@ import {
   strategyList,
   strategyGetMetadataSchema,
   strategyUpsertMetadata,
-  gameSuggestPaths,
-  GameSuggestions,
   StrategyEntry,
 } from "@/services/tauriCommands";
 import { MetadataField } from "@/types/strategy";
+import { useGameSuggestions } from "@/hooks/useGameSuggestions";
+import { ExtraExe, serializeExtraExes } from "@/utils/extraExes";
 
 export type Step = "pick" | "details" | "metadata";
 export type PickMode = "folder" | "file";
-
-/** Deepest directory level the suggestion scan will walk. */
-const MAX_SUGGEST_DEPTH = 4;
 
 interface AddItemFlowArgs {
   /** Collection to file under, or null to add to the library ungrouped. */
@@ -56,10 +53,8 @@ export function useAddItemFlow({ collectionId: collectionIdProp, defaultStrategy
   const [strategies, setStrategies] = useState<StrategyEntry[]>([]);
   const [schema, setSchema] = useState<MetadataField[]>([]);
   const [metaValues, setMetaValues] = useState<Record<string, string>>({});
-  const [gameSuggestions, setGameSuggestions] = useState<GameSuggestions | null>(null);
-  const [suggestDepth, setSuggestDepth] = useState(0);
-  const [suggestLoadingMore, setSuggestLoadingMore] = useState(false);
-  const [suggestMaxDepth, setSuggestMaxDepth] = useState(false);
+  // Extra executables (server, config tool, …) chosen alongside the main exe.
+  const [extraExes, setExtraExes] = useState<ExtraExe[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(() => (initialPath ? derivedFromPath(initialPath, defaultStrategy).name : ""));
@@ -69,18 +64,8 @@ export function useAddItemFlow({ collectionId: collectionIdProp, defaultStrategy
 
   useEffect(() => { strategyList().then(setStrategies).catch(() => {}); }, []);
 
-  // Fetch root-level suggestions (depth 0) only — fast, covers 99% of games.
-  useEffect(() => {
-    if (strategyType !== "game" || !folderPath) {
-      setGameSuggestions(null);
-      setSuggestDepth(0);
-      setSuggestMaxDepth(false);
-      return;
-    }
-    gameSuggestPaths(folderPath, 0).then(setGameSuggestions).catch(() => setGameSuggestions(null));
-    setSuggestDepth(0);
-    setSuggestMaxDepth(false);
-  }, [strategyType, folderPath]);
+  // Path suggestions for game folders, shared with the edit modal's picker.
+  const suggest = useGameSuggestions(strategyType === "game" && folderPath ? folderPath : null);
 
   useEffect(() => {
     if (!strategyType) return;
@@ -93,26 +78,6 @@ export function useAddItemFlow({ collectionId: collectionIdProp, defaultStrategy
       })
       .catch(() => setSchema([]));
   }, [strategyType]);
-
-  async function loadMoreSuggestions() {
-    if (!folderPath || suggestLoadingMore || suggestMaxDepth) return;
-    const nextDepth = suggestDepth + 1;
-    if (nextDepth > MAX_SUGGEST_DEPTH) { setSuggestMaxDepth(true); return; }
-    setSuggestLoadingMore(true);
-    try {
-      const more = await gameSuggestPaths(folderPath, nextDepth);
-      setSuggestDepth(nextDepth);
-      if (nextDepth >= MAX_SUGGEST_DEPTH) setSuggestMaxDepth(true);
-      // Append new results to existing suggestions.
-      setGameSuggestions((prev) => prev ? {
-        executables: [...prev.executables, ...more.executables],
-        mod_folders: [...prev.mod_folders, ...more.mod_folders],
-        screenshot_folders: [...prev.screenshot_folders, ...more.screenshot_folders],
-      } : more);
-    } catch { /* non-fatal */ } finally {
-      setSuggestLoadingMore(false);
-    }
-  }
 
   async function pick(m: PickMode) {
     setError(null);
@@ -156,6 +121,9 @@ export function useAddItemFlow({ collectionId: collectionIdProp, defaultStrategy
       for (const [key, val] of Object.entries(metaValues)) {
         if (val.trim()) filledMeta[key] = val.trim();
       }
+      if (extraExes.length > 0) {
+        filledMeta.extra_exes = serializeExtraExes(extraExes);
+      }
       if (Object.keys(filledMeta).length > 0) {
         await strategyUpsertMetadata(item.id, filledMeta);
       }
@@ -178,7 +146,11 @@ export function useAddItemFlow({ collectionId: collectionIdProp, defaultStrategy
     name, setName,
     strategyType, setStrategyType, strategies,
     schema, metaValues, setMetaValue: (k: string, v: string) => setMetaValues((p) => ({ ...p, [k]: v })),
-    gameSuggestions, loadMoreSuggestions, suggestLoadingMore, suggestMaxDepth,
+    extraExes, setExtraExes,
+    gameSuggestions: suggest.suggestions,
+    loadMoreSuggestions: suggest.loadMore,
+    suggestLoadingMore: suggest.loadingMore,
+    suggestMaxDepth: suggest.maxDepthReached,
     submitting, setSubmitting, error, setError,
     detailsNext, submit,
   };

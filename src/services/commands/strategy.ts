@@ -91,6 +91,15 @@ export async function strategyExecuteLaunchTracked(itemId: string): Promise<numb
 }
 
 /**
+ * Launches an extra executable (server, config tool, …) by path, untracked.
+ * @param exePath - Absolute path to the executable
+ * @throws {string} If the process cannot be spawned
+ */
+export async function gameLaunchExtraExe(exePath: string): Promise<void> {
+  return invoke("game_launch_extra_exe", { exePath });
+}
+
+/**
  * Returns playtime summary for a list of items.
  * @param itemIds - Array of item UUIDs
  * @returns Map of item_id → { total_playtime_minutes?, last_launched? }

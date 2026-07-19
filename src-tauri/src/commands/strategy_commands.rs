@@ -139,6 +139,19 @@ pub async fn strategy_execute_launch_tracked(
         .map_err(|e| e.to_string())
 }
 
+/// Launches an extra executable by path, without playtime tracking.
+///
+/// For a game's secondary executables (server, config tool, …); the main exe is
+/// launched via `strategy_execute_launch_tracked` and is the one that counts
+/// toward playtime.
+///
+/// # Errors
+/// Returns an error string if the process could not be spawned.
+#[tauri::command]
+pub fn game_launch_extra_exe(exe_path: String) -> Result<(), String> {
+    launcher::launch_exe_untracked(&exe_path).map_err(|e| e.to_string())
+}
+
 /// Returns playtime summary for all items in a collection.
 ///
 /// Reads `total_playtime_minutes` and `last_launched` metadata keys for every

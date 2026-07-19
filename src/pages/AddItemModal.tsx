@@ -16,6 +16,7 @@ import StepBar, { StepInfo } from "@/components/additem/StepBar";
 import PickStep from "@/components/additem/PickStep";
 import DetailsStep from "@/components/additem/DetailsStep";
 import MetadataStep from "@/components/additem/MetadataStep";
+import ExtraExesEditor from "@/components/detail/ExtraExesEditor";
 import GroupsMenu from "@/components/additem/GroupsMenu";
 import VirtualForm from "@/components/additem/VirtualForm";
 import form from "@/styles/form.module.css";
@@ -120,16 +121,30 @@ export default function AddItemModal({
                 />
               )}
               {step === "metadata" && (
-                <MetadataStep
-                  schema={flow.schema}
-                  values={flow.metaValues}
-                  onChange={flow.setMetaValue}
-                  basePath={flow.folderPath}
-                  gameSuggestions={flow.gameSuggestions ?? undefined}
-                  onLoadMoreSuggestions={flow.loadMoreSuggestions}
-                  loadingMoreSuggestions={flow.suggestLoadingMore}
-                  noMoreSuggestions={flow.suggestMaxDepth}
-                />
+                <>
+                  <MetadataStep
+                    schema={flow.schema}
+                    values={flow.metaValues}
+                    onChange={flow.setMetaValue}
+                    basePath={flow.folderPath}
+                    gameSuggestions={flow.gameSuggestions ?? undefined}
+                    onLoadMoreSuggestions={flow.loadMoreSuggestions}
+                    loadingMoreSuggestions={flow.suggestLoadingMore}
+                    noMoreSuggestions={flow.suggestMaxDepth}
+                  />
+                  {flow.strategyType === "game" && (
+                    <div className={form.label}>
+                      <span>Extra executables</span>
+                      <ExtraExesEditor
+                        value={flow.extraExes}
+                        onChange={flow.setExtraExes}
+                        suggestions={flow.gameSuggestions?.executables ?? []}
+                        basePath={flow.folderPath}
+                      />
+                      <span className={form.hint}>Optional — server, config tool, … launched without playtime tracking</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

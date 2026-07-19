@@ -11,9 +11,10 @@
  * @param folderPath - Absolute path to the game folder
  */
 import { useState, ReactNode } from "react";
-import { Play, FolderOpen, RefreshCw, Terminal, Image, Clock } from "lucide-react";
-import { strategyExecuteLaunchTracked, shellOpenPath } from "@/services/tauriCommands";
+import { Play, FolderOpen, RefreshCw, Terminal, Image, Clock, SquareTerminal } from "lucide-react";
+import { strategyExecuteLaunchTracked, shellOpenPath, gameLaunchExtraExe } from "@/services/tauriCommands";
 import { useStrategy } from "@/hooks/useStrategy";
+import { parseExtraExes } from "@/utils/extraExes";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import styles from "./GameItemView.module.css";
 
@@ -42,8 +43,18 @@ export default function GameItemView({ itemId, folderPath }: GameItemViewProps) 
   const exePath = metadata["exe_path"] ?? "";
   const modFolder = metadata["mod_folder"] ?? "";
   const screenshotFolder = metadata["screenshot_folder"] ?? "";
+  const extraExes = parseExtraExes(metadata["extra_exes"]);
   const totalSecs = parseInt(metadata["total_playtime_seconds"] ?? "0", 10) || 0;
   const lastLaunched = parseInt(metadata["last_launched"] ?? "0", 10) || 0;
+
+  async function handleLaunchExtra(path: string) {
+    setActionError(null);
+    try {
+      await gameLaunchExtraExe(path);
+    } catch (e) {
+      setActionError(String(e));
+    }
+  }
 
   async function handleLaunch() {
     setActionError(null);
@@ -97,6 +108,26 @@ export default function GameItemView({ itemId, folderPath }: GameItemViewProps) 
           ? <span className={styles.path}>{exePath}</span>
           : <span className={styles.missing}>Not set</span>}
       </Row>
+
+      {extraExes.map((exe) => (
+        <Row
+          key={exe.path}
+          icon={<SquareTerminal size={13} className={styles.rowIcon} />}
+          label={exe.label || "Executable"}
+          action={
+            <button
+              className={styles.actionBtn}
+              onClick={() => handleLaunchExtra(exe.path)}
+              title={`Launch ${exe.label || "executable"}`}
+            >
+              <Play size={12} />
+              Launch
+            </button>
+          }
+        >
+          <span className={styles.path}>{exe.path}</span>
+        </Row>
+      ))}
 
       <Row icon={<Clock size={13} className={styles.rowIcon} />} label="Time Played">
         <span className={styles.path}>{fmtSeconds(totalSecs)}</span>

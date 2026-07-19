@@ -57,6 +57,26 @@ fn exe_working_dir(exe_path: &str) -> Option<std::path::PathBuf> {
     }
 }
 
+/// Spawns an exe at `exe_path` detached, with its own folder as the working
+/// directory, and returns immediately without tracking.
+///
+/// Used for a game's extra executables (server, config tool, …): they launch
+/// independently and are not counted toward playtime, unlike the main exe.
+///
+/// # Errors
+/// Returns a `LauncherError::Spawn` if the process cannot be started.
+pub fn launch_exe_untracked(exe_path: &str) -> Result<(), LauncherError> {
+    let mut cmd = std::process::Command::new(exe_path);
+    if let Some(dir) = exe_working_dir(exe_path) {
+        cmd.current_dir(dir);
+    }
+    cmd.spawn().map_err(|source| LauncherError::Spawn {
+        target: exe_path.to_string(),
+        source,
+    })?;
+    Ok(())
+}
+
 /// Launches an item and blocks (asynchronously) until it exits, then
 /// persists playtime metadata. Returns the session length in seconds.
 ///

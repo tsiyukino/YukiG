@@ -148,6 +148,7 @@ pub fn run() {
             strategy_get_launch_action,
             strategy_get_metadata_schema,
             strategy_execute_launch_tracked,
+            game_launch_extra_exe,
             strategy_get_playtime_bulk,
             strategy_get_metadata,
             strategy_upsert_metadata,

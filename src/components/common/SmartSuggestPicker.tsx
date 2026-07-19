@@ -25,8 +25,14 @@ interface SmartSuggestPickerProps {
   fieldType: "file_path" | "folder_path";
   /** Sorted suggestion list from the backend. */
   suggestions: PathSuggestion[];
-  /** Currently selected path (empty string = none). */
+  /** Currently selected path (empty string = none). Ignored in multi-select mode. */
   value: string;
+  /**
+   * Multi-select mode: paths currently chosen elsewhere. Items in this set
+   * render checked and stay in the list; every click reports the path via
+   * `onChange` and the parent toggles membership.
+   */
+  selectedPaths?: string[];
   /** Base path passed to the OS dialog as the starting directory. */
   basePath?: string;
   onChange: (path: string) => void;
@@ -42,9 +48,10 @@ interface SmartSuggestPickerProps {
  * Renders a compact suggestion list with an expand toggle and a manual browse fallback.
  */
 export default function SmartSuggestPicker({
-  label, required, fieldType, suggestions, value, basePath, onChange,
+  label, required, fieldType, suggestions, value, selectedPaths, basePath, onChange,
   onLoadMore, loadingMore, noMore,
 }: SmartSuggestPickerProps) {
+  const multi = selectedPaths !== undefined;
   const [expanded, setExpanded] = useState(false);
   const [picking, setPicking] = useState(false);
 
@@ -95,13 +102,13 @@ export default function SmartSuggestPicker({
       ) : (
         <div className={styles.list}>
           {visible.map((s) => {
-            const selected = value === s.path;
+            const selected = multi ? selectedPaths.includes(s.path) : value === s.path;
             return (
               <button
                 key={s.path}
                 type="button"
                 className={selected ? `${styles.item} ${styles.itemSelected}` : styles.item}
-                onClick={() => onChange(selected ? "" : s.path)}
+                onClick={() => onChange(multi ? s.path : selected ? "" : s.path)}
                 title={s.path}
               >
                 <div className={styles.check}>{selected && <Check size={10} strokeWidth={3} />}</div>

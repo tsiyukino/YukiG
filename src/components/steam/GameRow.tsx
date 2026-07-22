@@ -3,12 +3,12 @@
  */
 import React from "react";
 import { HardDrive, Heart, Gamepad2 } from "lucide-react";
-import { SteamGame } from "@/types/steam";
+import { SteamLibItem } from "@/types/steam";
 import { fmtBytes } from "@/utils/steamFormatters";
 
 interface GameRowProps {
   /** The Steam game to display. */
-  game: SteamGame;
+  game: SteamLibItem;
   /** Whether this row is currently selected (opens the drawer). */
   isSelected: boolean;
   /** Whether this game is in the user's favorites. */

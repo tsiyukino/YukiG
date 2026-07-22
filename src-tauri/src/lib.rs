@@ -178,6 +178,7 @@ pub fn run() {
             steam_get_imported_ids,
             steam_get_running_appid,
             steam_get_game_db_info,
+            steam_get_library,
             steam_get_users,
             steam_switch_account,
             steam_launch_game,

@@ -223,6 +223,13 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Owner**: `commands/steam_commands.rs`
 - **Note**: Reads the `steam_running` watcher's state (mirrors Steam's `RunningAppID`). Keyed by app id — independent of library import — so the Steam page can mark a running game whether launched from Steam or YukiG. Live updates arrive via the `steam-running-changed` event (payload: the app id, 0 = none).
 
+### `steam_get_library`
+- **Parameters**: none
+- **Returns**: `SteamLibItem[]` — one per imported `steam_game` item: the flattened `Item` plus `app_id`, `is_installed`, `size_on_disk`, `playtime_minutes`, cover URLs (`icon_url`, `header_image`, `library_image`, `library_hero`, `library_logo`), and `collections: string[]` (the names of the `steam_collection` tags the game belongs to)
+- **Errors**: DB failure
+- **Owner**: `commands/steam_commands.rs` (query in `db/queries/steam_lib_queries.rs`)
+- **Note**: The Steam page's data source — it reads synced library items from the DB rather than the in-memory scan, so every Steam game is a first-class `Item` with a stable id. The scan/sync flow (`steam_scan` + `steam_sync`) only refreshes the DB; the frontend reloads this after each sync via the store's `lastSyncAt`.
+
 ## Game Status
 
 ### `game_status_get`

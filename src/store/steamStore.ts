@@ -21,6 +21,10 @@ interface SteamStoreState {
   loading: boolean;
   error: string | null;
   lastScanAt: number;
+  /** Timestamp of the last completed DB sync. Advances only after the sync
+   *  finishes, so consumers reading synced data (the Steam page library) can
+   *  key their reload off it rather than off the earlier scan completion. */
+  lastSyncAt: number;
 }
 
 type Listener = (state: SteamStoreState) => void;
@@ -32,6 +36,7 @@ let _state: SteamStoreState = {
   loading: false,
   error: null,
   lastScanAt: 0,
+  lastSyncAt: 0,
 };
 
 const _listeners = new Set<Listener>();
@@ -61,8 +66,11 @@ export async function steamStoreScan(): Promise<void> {
       setState({ result, loading: false, lastScanAt: Date.now() });
       // Persist the library into the DB so Steam games become tracked items
       // (home, tray, recent list, Play page). Non-fatal: a sync failure must
-      // not break the in-memory browse view above.
-      steamSync().catch((e) => console.error("steam_sync failed:", e));
+      // not break the in-memory browse view above. On success, advance
+      // lastSyncAt so the Steam page reloads its DB-backed library.
+      steamSync()
+        .then(() => setState({ lastSyncAt: Date.now() }))
+        .catch((e) => console.error("steam_sync failed:", e));
     } catch (e) {
       setState({ loading: false, error: String(e) });
     } finally {

@@ -2,43 +2,48 @@
  * Utility functions for formatting Steam-related data for display.
  */
 
-import { SteamGame } from "@/types/steam";
+import { SteamLibItem } from "@/types/steam";
 
 /** Groups games by collection name, sorting installed before uninstalled, then by playtime. */
 export interface CollectionGroup {
   name: string;
-  games: SteamGame[];
+  games: SteamLibItem[];
 }
 
 /**
- * Builds a list of CollectionGroup from a flat game array and a list of collection names.
- * Games not in any collection are placed in "Steam — Uncategorized".
- * Within each group, installed games come first, then sorted by playtime descending.
+ * Builds a list of CollectionGroup from the library games.
  *
- * @param games - Flat list of all Steam games from the scan result
- * @param collectionNames - Ordered list of Steam collection names
+ * Every game belongs to a group by its `collections` (the Steam Collections it
+ * is tagged with); a game in several collections appears in each. Games in no
+ * collection go to "Steam — Uncategorized". Within each group, installed games
+ * come first, then most-played descending.
+ *
+ * @param games - The Steam library games (from steam_get_library)
  * @returns Sorted array of collection groups (empty groups omitted)
  */
-export function buildGroups(games: SteamGame[], collectionNames: string[]): CollectionGroup[] {
-  const map = new Map<string, SteamGame[]>();
-  for (const name of collectionNames) map.set(name, []);
+export function buildGroups(games: SteamLibItem[]): CollectionGroup[] {
+  const map = new Map<string, SteamLibItem[]>();
   map.set("Steam — Uncategorized", []);
 
   for (const game of games) {
-    const col = game.collections[0] ?? "Steam — Uncategorized";
-    if (!map.has(col)) map.set(col, []);
-    map.get(col)!.push(game);
+    if (game.collections.length === 0) {
+      map.get("Steam — Uncategorized")!.push(game);
+      continue;
+    }
+    for (const col of game.collections) {
+      if (!map.has(col)) map.set(col, []);
+      map.get(col)!.push(game);
+    }
   }
 
   const result: CollectionGroup[] = [];
   for (const [name, g] of map) {
     if (g.length === 0) continue;
     // Primary: installed games before uninstalled.
-    // Secondary (within each group): most-played descending, then most-recently-played descending.
+    // Secondary (within each group): most-played descending.
     g.sort((a, b) => {
       if (a.is_installed !== b.is_installed) return a.is_installed ? -1 : 1;
-      if (b.playtime_minutes !== a.playtime_minutes) return b.playtime_minutes - a.playtime_minutes;
-      return b.last_played - a.last_played;
+      return b.playtime_minutes - a.playtime_minutes;
     });
     result.push({ name, games: g });
   }

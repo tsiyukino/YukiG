@@ -60,6 +60,7 @@ fn all_migrations() -> Vec<(&'static str, &'static str)> {
         ("015_collections_to_grouping_tags", include_str!("../../migrations/015_collections_to_grouping_tags.sql")),
         ("016_demote_steam_collection_groupings", include_str!("../../migrations/016_demote_steam_collection_groupings.sql")),
         ("017_remove_grouping_tags", include_str!("../../migrations/017_remove_grouping_tags.sql")),
+        ("018_steam_collection_tag_type", include_str!("../../migrations/018_steam_collection_tag_type.sql")),
     ]
 }
 
@@ -383,6 +384,49 @@ mod tests {
                 .unwrap();
             assert_eq!(present, 0, "column {col} must be dropped");
         }
+    }
+
+    /// Migration 018 reclassifies Steam-collection tags (blue-grey, assigned to
+    /// a steam_game item) to the `steam_collection` type, leaving same-coloured
+    /// user tags and other tags alone.
+    #[test]
+    fn migration_018_types_steam_collection_tags() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        ensure_migrations_table(&conn).unwrap();
+        for (name, sql) in all_migrations() {
+            if name == "018_steam_collection_tag_type" {
+                break;
+            }
+            apply(&conn, name, sql).unwrap();
+        }
+
+        // A steam_game item, a local game, and three tags:
+        //  - 'action'  : blue-grey, assigned to the steam game  → reclassify
+        //  - 'user-blue': blue-grey, assigned only to the local game → keep
+        //  - 'mymood'  : other colour, assigned to the steam game → keep
+        conn.execute_batch(
+            "INSERT INTO items (id, collection_id, name, folder_path, strategy_type, created_at, updated_at)
+             VALUES ('sg', 'steam-system', 'ZKV', 'C:/z', 'steam_game', 't', 't'),
+                    ('lg', NULL, 'Local', 'C:/l', 'game', 't', 't');
+             INSERT INTO tags (id, name, color, group_id, tag_type) VALUES
+                ('t-action', 'Action', '#66c0f4', NULL, 'regular'),
+                ('t-userblue', 'MyBlue', '#66c0f4', NULL, 'regular'),
+                ('t-mood', 'Cozy', '#999999', NULL, 'regular');
+             INSERT INTO item_tags (item_id, tag_id) VALUES
+                ('sg', 't-action'), ('lg', 't-userblue'), ('sg', 't-mood');",
+        ).unwrap();
+
+        let sql = all_migrations().into_iter()
+            .find(|(n, _)| *n == "018_steam_collection_tag_type").unwrap().1;
+        apply(&conn, "018_steam_collection_tag_type", sql).unwrap();
+
+        let ty = |id: &str| -> String {
+            conn.query_row("SELECT tag_type FROM tags WHERE id = ?1", [id], |r| r.get(0)).unwrap()
+        };
+        assert_eq!(ty("t-action"), "steam_collection", "blue tag on a steam game is reclassified");
+        assert_eq!(ty("t-userblue"), "regular", "blue tag on a local game only is left alone");
+        assert_eq!(ty("t-mood"), "regular", "non-blue tag on a steam game is left alone");
     }
 
     /// A migration that leaves a dangling foreign key must roll back and not be

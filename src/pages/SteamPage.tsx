@@ -22,6 +22,7 @@ import { steamSync, steamGetGameDbInfo, SteamGameDbInfo, gameStatusBulkInit } fr
 import { SteamGame, SyncResult } from "@/types/steam";
 import SteamIcon from "@/components/common/SteamIcon";
 import { useSteamStore, steamStoreScan } from "@/store/steamStore";
+import { useSteamLibrary } from "@/hooks/useSteamLibrary";
 import { buildGroups } from "@/utils/steamFormatters";
 import LibraryTab from "@/components/steam/LibraryTab";
 import GameDetailTab from "@/components/steam/GameDetailTab";
@@ -49,9 +50,11 @@ export default function SteamPage() {
   const [detailGame, setDetailGame] = useState<SteamGame | null>(null);
   const [gameDbInfo, setGameDbInfo] = useState<Record<number, SteamGameDbInfo>>({});
 
-  // Read from shared store — populated on app start
-  const { result: scanResult, loading: scanning, error: scanError } = useSteamStore();
-  const groups = scanResult ? buildGroups(scanResult.games, scanResult.collection_names) : [];
+  // Scan store still drives Sync + hourly refresh; the library view reads the
+  // synced games from the DB (via useSteamLibrary), which re-loads after a sync.
+  const { result: scanResult, loading: scanning } = useSteamStore();
+  const { games: libGames, loading: libLoading, error: libError, reload: reloadLibrary } = useSteamLibrary();
+  const groups = buildGroups(libGames);
 
   // Load DB info on mount and after syncs
   useEffect(() => {
@@ -83,14 +86,6 @@ export default function SteamPage() {
     } finally {
       setSyncing(false);
     }
-  }
-
-  function handleFavoriteChanged(appId: number, isFavorite: boolean) {
-    setGameDbInfo((prev) => {
-      const entry = prev[appId];
-      if (!entry) return prev;
-      return { ...prev, [appId]: { ...entry, is_favorite: isFavorite } };
-    });
   }
 
   function handleSeeDetails(game: SteamGame) {
@@ -158,13 +153,13 @@ export default function SteamPage() {
       <div className="sp-content">
         {tab === "library" && (
           <LibraryTab
-            scanning={scanning}
+            loading={libLoading || scanning}
             groups={groups}
-            scanError={scanError}
+            libGames={libGames}
+            error={libError}
             scanResult={scanResult}
-            gameDbInfo={gameDbInfo}
             onSeeDetails={handleSeeDetails}
-            onFavoriteChanged={handleFavoriteChanged}
+            onReload={reloadLibrary}
             openItemId={openItemId}
           />
         )}

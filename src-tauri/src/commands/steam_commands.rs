@@ -18,8 +18,9 @@ use tauri::State;
 
 use crate::db::connection::DbConnection;
 use crate::db::models::NewCollection;
-use crate::db::queries::{collection_queries, item_queries, strategy_metadata_queries, tag_queries};
+use crate::db::queries::{collection_queries, item_queries, steam_lib_queries, strategy_metadata_queries, tag_queries};
 use crate::db::queries::item_queries::NewItem;
+use crate::db::queries::steam_lib_queries::SteamLibItem;
 use crate::services::steam::{self, SteamScanResult, SteamUser};
 
 /// Fixed id of the system "Steam" collection (created by migration 014). All
@@ -106,12 +107,13 @@ fn apply_steam_category_tags(
 /// Color for tags derived from Steam Collections (Steam's blue-grey).
 const STEAM_COLLECTION_TAG_COLOR: &str = "#66c0f4";
 
-/// Maps a game's Steam Collections to regular tags and assigns them.
+/// Maps a game's Steam Collections to `steam_collection` tags and assigns them.
 ///
-/// A Steam Collection is a many-to-many grouping (a game can be in several),
-/// so it maps to tags rather than to a single YukiG collection. The "Favorites"
-/// collection is skipped — it is surfaced through the item's `is_favorite`
-/// flag, not as a tag.
+/// A Steam Collection is a many-to-many grouping (a game can be in several), so
+/// it maps to tags rather than to a single YukiG collection. The dedicated
+/// `steam_collection` tag type lets the Steam page pick collections out of the
+/// tag set without guessing by colour. The "Favorites" collection is skipped —
+/// it is surfaced through the item's `is_favorite` flag, not as a tag.
 fn apply_steam_collection_tags(
     conn: &rusqlite::Connection,
     item_id: &str,
@@ -122,7 +124,9 @@ fn apply_steam_collection_tags(
         if name.is_empty() || name.eq_ignore_ascii_case("favorites") {
             continue;
         }
-        if let Ok(tag) = tag_queries::upsert_regular(conn, name, STEAM_COLLECTION_TAG_COLOR) {
+        if let Ok(tag) =
+            tag_queries::upsert_typed(conn, name, STEAM_COLLECTION_TAG_COLOR, "steam_collection")
+        {
             let _ = tag_queries::assign(conn, item_id, &tag.id);
         }
     }
@@ -480,6 +484,21 @@ pub fn steam_get_game_db_info(
         map.insert(app_id, SteamGameDbInfo { item_id, is_favorite });
     }
     Ok(map)
+}
+
+/// Returns the full Steam library from the DB (imported `steam_game` items).
+///
+/// This is the Steam page's data source — every game is a unified `Item` with a
+/// stable id, carrying its Steam cover art, install/playtime facts, and the
+/// names of the `steam_collection` tags it belongs to. The in-memory scan is
+/// only used by the Sync button now; the page itself reads from here.
+///
+/// # Errors
+/// Returns an error string if the database cannot be accessed.
+#[tauri::command]
+pub fn steam_get_library(db: State<DbConnection>) -> Result<Vec<SteamLibItem>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    steam_lib_queries::get_steam_library(&conn).map_err(|e| e.to_string())
 }
 
 fn get_imported_ids_set(conn: &rusqlite::Connection) -> rusqlite::Result<std::collections::HashSet<u64>> {

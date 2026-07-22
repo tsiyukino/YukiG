@@ -36,6 +36,7 @@ Single `Mutex<Connection>` stored as Tauri managed state (`DbConnection`). WAL m
 | `015_collections_to_grouping_tags.sql` | Applied | Mirrored collections into `grouping` tags (direction later reverted) |
 | `016_demote_steam_collection_groupings.sql` | Applied | Demoted legacy "Steam collection:" groupings to regular tags |
 | `017_remove_grouping_tags.sql` | Applied | Removed grouping tags and the `icon`/`description`/`sort_order` tag columns (015 revert) |
+| `018_steam_collection_tag_type.sql` | Applied | Reclassified Steam-collection tags to the `steam_collection` tag type |
 
 ## Schema
 
@@ -86,7 +87,7 @@ Single `Mutex<Connection>` stored as Tauri managed state (`DbConnection`). WAL m
 | name | TEXT | NOT NULL, UNIQUE | Tag display name |
 | color | TEXT | NOT NULL DEFAULT '#94a3b8' | Hex color |
 | group_id | TEXT | NULL, FK → tag_groups.id SET NULL | Owning tag group, NULL = ungrouped |
-| tag_type | TEXT | NOT NULL DEFAULT 'regular' | `regular \| category \| functional \| element \| mood` |
+| tag_type | TEXT | NOT NULL DEFAULT 'regular' | `regular \| category \| functional \| element \| mood \| steam_collection` |
 
 ### tag_groups
 

@@ -1,6 +1,7 @@
 /**
  * TypeScript types for the Steam integration domain.
  */
+import { Item } from "@/types/item";
 
 /** A single Steam game as returned by the backend scan. */
 export interface SteamGame {
@@ -36,6 +37,28 @@ export interface SteamGame {
   os_list: number;
   /** Steam category IDs from appinfo.vdf (e.g. 1=Multi-player, 36=Online PvP, 9=Co-op). */
   categories: number[];
+}
+
+/**
+ * A Steam library game as read from the DB (an imported `steam_game` item).
+ *
+ * This is the Steam page's data source: a unified `Item` (stable id, favourite
+ * flag, etc.) extended with the Steam cover art and facts stored in metadata,
+ * plus the names of the `steam_collection` tags the game belongs to. Mirrors the
+ * Rust `SteamLibItem` (which flattens `Item` into the same shape).
+ */
+export interface SteamLibItem extends Item {
+  app_id: number;
+  is_installed: boolean;
+  size_on_disk: number;
+  playtime_minutes: number;
+  icon_url: string;
+  header_image: string;
+  library_image: string;
+  library_hero: string;
+  library_logo: string;
+  /** Names of the Steam Collections this game is in. */
+  collections: string[];
 }
 
 /** A local screenshot file for a Steam game. */

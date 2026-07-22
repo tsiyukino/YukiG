@@ -3,13 +3,13 @@
  */
 import React from "react";
 import { HardDrive, Heart } from "lucide-react";
-import { SteamGame } from "@/types/steam";
+import { SteamLibItem } from "@/types/steam";
 import { steamImageSrc } from "@/utils/pathUtils";
 import { fmtBytes } from "@/utils/steamFormatters";
 
 interface GameCardProps {
   /** The Steam game to display. */
-  game: SteamGame;
+  game: SteamLibItem;
   /** Whether this card is currently selected (opens the drawer). */
   isSelected: boolean;
   /** Whether this game is in the user's favorites. */

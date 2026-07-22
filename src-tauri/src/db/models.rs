@@ -62,7 +62,7 @@ pub struct Tag {
     pub color: String,
     /// The group this tag belongs to, or None if ungrouped.
     pub group_id: Option<String>,
-    /// Tag kind: `category` / `functional` / `element` / `mood` / `regular`.
+    /// Tag kind: `category` / `functional` / `element` / `mood` / `steam_collection` / `regular`.
     pub tag_type: String,
 }
 

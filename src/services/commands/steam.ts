@@ -7,6 +7,7 @@ import {
   ImportResult,
   SyncResult,
   SteamScanResult,
+  SteamLibItem,
   SteamUser,
   SteamAchievement,
   SteamScreenshot,
@@ -38,6 +39,17 @@ export async function steamScan(): Promise<SteamScanResult> {
  */
 export async function steamSync(): Promise<SyncResult> {
   return invoke("steam_sync");
+}
+
+/**
+ * Reads the imported Steam library from the DB — the Steam page's data source.
+ * Each game is a unified item (stable id) with its Steam cover art, install /
+ * playtime facts, and the Steam Collections it belongs to.
+ * @returns All imported Steam games, ordered by name
+ * @throws {string} If the database cannot be accessed
+ */
+export async function steamGetLibrary(): Promise<SteamLibItem[]> {
+  return invoke("steam_get_library");
 }
 
 /**

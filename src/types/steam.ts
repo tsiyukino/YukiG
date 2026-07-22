@@ -57,8 +57,11 @@ export interface SteamLibItem extends Item {
   library_image: string;
   library_hero: string;
   library_logo: string;
-  /** Names of the Steam Collections this game is in. */
+  /** Names of the Steam Collections this game is in (including Favorites). */
   collections: string[];
+  /** Name of the Favorites collection if this game is in it, else null. Lets the
+   *  sidebar pin the Favorites group to the top without hardcoding its name. */
+  favorites_name: string | null;
 }
 
 /** A local screenshot file for a Steam game. */

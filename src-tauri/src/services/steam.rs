@@ -149,6 +149,9 @@ pub struct SteamUser {
 pub struct SteamScanResult {
     pub games: Vec<SteamGame>,
     pub collection_names: Vec<String>,
+    /// Localised name of Steam's built-in Favorites collection, if present. Used
+    /// by sync to type its tag `steam_favorites` and set `is_favorite` on members.
+    pub favorites_name: Option<String>,
     pub steam_path: String,
     pub users: Vec<SteamUser>,
 }
@@ -244,6 +247,8 @@ pub fn scan(steam_path: &Path) -> Result<SteamScanResult, String> {
     let mut last_played_map: HashMap<u64, u64> = HashMap::new();
     let mut playtime_map: HashMap<u64, u64> = HashMap::new();
     let mut hidden_ids: HashSet<u64> = HashSet::new();
+    // Localised display name of the Favorites collection, once seen.
+    let mut favorites_name: Option<String> = None;
 
     // 6. Collect all owned app IDs from sharedconfig.vdf (older format, still used).
     let mut all_app_ids: HashSet<u64> = HashSet::new();
@@ -263,7 +268,7 @@ pub fn scan(steam_path: &Path) -> Result<SteamScanResult, String> {
             if let Ok(content) = fs::read_to_string(&local) {
                 parse_localconfig(&content, &mut all_app_ids, &mut collection_map,
                                   &mut collection_names, &mut last_played_map,
-                                  &mut playtime_map, &mut hidden_ids);
+                                  &mut playtime_map, &mut hidden_ids, &mut favorites_name);
             }
         }
 
@@ -276,7 +281,7 @@ pub fn scan(steam_path: &Path) -> Result<SteamScanResult, String> {
             if cloud_file.exists() {
                 if let Ok(content) = fs::read_to_string(&cloud_file) {
                     parse_cloud_collections(&content, &mut all_app_ids, &mut collection_map,
-                                            &mut collection_names, &mut hidden_ids);
+                                            &mut collection_names, &mut hidden_ids, &mut favorites_name);
                 }
             }
         }
@@ -371,9 +376,11 @@ pub fn scan(steam_path: &Path) -> Result<SteamScanResult, String> {
 
     // Deduplicate collection names (Favorites always first).
     collection_names.dedup();
-    if let Some(pos) = collection_names.iter().position(|n| n == "Favorites") {
-        let fav = collection_names.remove(pos);
-        collection_names.insert(0, fav);
+    if let Some(ref fav_name) = favorites_name {
+        if let Some(pos) = collection_names.iter().position(|n| n == fav_name) {
+            let fav = collection_names.remove(pos);
+            collection_names.insert(0, fav);
+        }
     }
 
     // 9. Parse accounts from loginusers.vdf.
@@ -391,6 +398,7 @@ pub fn scan(steam_path: &Path) -> Result<SteamScanResult, String> {
     Ok(SteamScanResult {
         games,
         collection_names,
+        favorites_name,
         steam_path: steam_path.display().to_string(),
         users,
     })
@@ -1045,6 +1053,7 @@ fn parse_localconfig(
     last_played: &mut HashMap<u64, u64>,
     playtime: &mut HashMap<u64, u64>,
     hidden_ids: &mut HashSet<u64>,
+    favorites_name: &mut Option<String>,
 ) {
     // Phase 1: collect collections from WebStorage key-value pairs.
     // These appear as single-line pairs anywhere in the file:
@@ -1060,6 +1069,9 @@ fn parse_localconfig(
                 continue;
             }
             let display = normalize_collection_name(&col.id, &col.name);
+            if is_favorites_collection(&col.id, &col.name) {
+                *favorites_name = Some(display.clone());
+            }
             for app_id in &col.added {
                 collection_map.entry(*app_id).or_default().push(display.clone());
                 ids.insert(*app_id);
@@ -1098,6 +1110,7 @@ fn parse_cloud_collections(
     collection_map: &mut HashMap<u64, Vec<String>>,
     collection_names: &mut Vec<String>,
     hidden_ids: &mut HashSet<u64>,
+    favorites_name: &mut Option<String>,
 ) {
     // Deserialize as array of [key, object] pairs.
     let Ok(entries) = serde_json::from_str::<Vec<(String, serde_json::Value)>>(content) else {
@@ -1125,6 +1138,9 @@ fn parse_cloud_collections(
         }
 
         let display = normalize_collection_name(&col.id, &col.name);
+        if is_favorites_collection(&col.id, &col.name) {
+            *favorites_name = Some(display.clone());
+        }
 
         // Build the set difference: added - removed.
         let removed: HashSet<u64> = col.removed.iter().cloned().collect();
@@ -1192,11 +1208,22 @@ fn parse_collection_json(value: &str) -> Option<ParsedCollection> {
 }
 
 fn normalize_collection_name(id: &str, name: &str) -> String {
-    if id.to_uppercase().contains("FAVORITES") || name.eq_ignore_ascii_case("Favorites") {
-        "Favorites".to_string()
-    } else {
-        name.to_string()
-    }
+    // Historically the Favorites collection was collapsed to the English
+    // "Favorites" here. It now stays a normal collection (kept for the sidebar,
+    // see is_favorites_collection), so its localised name (e.g. "收藏夹") is
+    // preserved. Only genuinely nameless collections fall back to the id.
+    let _ = id;
+    name.to_string()
+}
+
+/// Returns true if a collection id/name is Steam's built-in Favorites collection.
+///
+/// The system id is `favorite` (singular) regardless of the client language, so
+/// this matches the id word-stem rather than the localised name; the English
+/// name is a fallback. Used to (a) still set `is_favorite` on member games and
+/// (b) pin this collection to the top of the Steam page sidebar.
+pub fn is_favorites_collection(id: &str, name: &str) -> bool {
+    id.to_uppercase().contains("FAVORITE") || name.eq_ignore_ascii_case("Favorites")
 }
 
 /// Returns true if a collection ID or name represents Steam's built-in "Hidden" collection.

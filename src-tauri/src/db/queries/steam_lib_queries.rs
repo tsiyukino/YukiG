@@ -27,8 +27,12 @@ pub struct SteamLibItem {
     pub library_image: String,
     pub library_hero: String,
     pub library_logo: String,
-    /// Names of the `steam_collection` tags this game is in, alphabetical.
+    /// Names of the Steam Collections this game is in (both `steam_collection`
+    /// and the built-in `steam_favorites`).
     pub collections: Vec<String>,
+    /// Name of the `steam_favorites` collection if this game is in it, so the
+    /// page can pin that group to the top of the sidebar. None otherwise.
+    pub favorites_name: Option<String>,
 }
 
 /// Returns every imported Steam game with its display fields and collection names.
@@ -57,7 +61,13 @@ pub fn get_steam_library(conn: &Connection) -> Result<Vec<SteamLibItem>> {
                 (SELECT GROUP_CONCAT(t.name, char(10))
                    FROM item_tags it
                    JOIN tags t ON t.id = it.tag_id
-                  WHERE it.item_id = i.id AND t.tag_type = 'steam_collection') AS collections
+                  WHERE it.item_id = i.id
+                    AND t.tag_type IN ('steam_collection', 'steam_favorites')) AS collections,
+                (SELECT t.name
+                   FROM item_tags it
+                   JOIN tags t ON t.id = it.tag_id
+                  WHERE it.item_id = i.id AND t.tag_type = 'steam_favorites'
+                  LIMIT 1) AS favorites_name
          FROM items i
          LEFT JOIN strategy_metadata m_app  ON m_app.item_id  = i.id AND m_app.key  = 'steam_app_id'
          LEFT JOIN strategy_metadata m_inst ON m_inst.item_id = i.id AND m_inst.key = 'is_installed'
@@ -105,6 +115,7 @@ pub fn get_steam_library(conn: &Connection) -> Result<Vec<SteamLibItem>> {
                 .filter(|s| !s.is_empty())
                 .map(|s| s.split('\n').map(str::to_string).collect())
                 .unwrap_or_default(),
+            favorites_name: row.get(24)?,
         })
     })?;
     rows.collect()
@@ -185,6 +196,27 @@ mod tests {
         insert_steam(&conn, "s1", "Solo", "5", false);
         let lib = get_steam_library(&conn).unwrap();
         assert!(lib[0].collections.is_empty());
+        assert!(lib[0].favorites_name.is_none());
         assert!(!lib[0].is_installed);
+    }
+
+    #[test]
+    fn favorites_tag_appears_in_collections_and_favorites_name() {
+        let conn = test_db();
+        insert_steam(&conn, "s1", "Game", "10", true);
+        // A regular collection and the built-in favorites collection.
+        conn.execute_batch(
+            "INSERT INTO tags (id, name, color, group_id, tag_type) VALUES
+                ('t-a',   'Action',  '#66c0f4', NULL, 'steam_collection'),
+                ('t-fav', '收藏夹',   '#66c0f4', NULL, 'steam_favorites');
+             INSERT INTO item_tags (item_id, tag_id) VALUES ('s1','t-a'), ('s1','t-fav');",
+        ).unwrap();
+
+        let lib = get_steam_library(&conn).unwrap();
+        let mut cols = lib[0].collections.clone();
+        cols.sort();
+        assert_eq!(cols, vec!["Action", "收藏夹"], "favorites tag is included as a group");
+        assert_eq!(lib[0].favorites_name.as_deref(), Some("收藏夹"),
+            "the favorites collection name is surfaced for top-pinning");
     }
 }

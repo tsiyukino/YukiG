@@ -88,7 +88,7 @@ Single `Mutex<Connection>` stored as Tauri managed state (`DbConnection`). WAL m
 | name | TEXT | NOT NULL, UNIQUE | Tag display name |
 | color | TEXT | NOT NULL DEFAULT '#94a3b8' | Hex color |
 | group_id | TEXT | NULL, FK → tag_groups.id SET NULL | Owning tag group, NULL = ungrouped |
-| tag_type | TEXT | NOT NULL DEFAULT 'regular' | `regular \| category \| functional \| element \| mood \| steam_collection` |
+| tag_type | TEXT | NOT NULL DEFAULT 'regular' | `regular \| category \| functional \| element \| mood \| steam_collection \| steam_favorites` |
 
 ### tag_groups
 

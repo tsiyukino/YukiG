@@ -12,6 +12,8 @@
  * - `mood`             — Play-page mood filters.
  * - `steam_collection` — a Steam Collection (the user's in-Steam grouping); drives
  *                        the Steam page sidebar. Written by Steam sync.
+ * - `steam_favorites`  — Steam's built-in Favorites collection; pinned to the top
+ *                        of the Steam page sidebar. Written by Steam sync.
  * - `regular`          — legacy/uncategorised tags (default before types existed).
  */
 export type TagType =
@@ -20,6 +22,7 @@ export type TagType =
   | "element"
   | "mood"
   | "steam_collection"
+  | "steam_favorites"
   | "regular";
 
 /** A user-created label that can be applied to any item. */

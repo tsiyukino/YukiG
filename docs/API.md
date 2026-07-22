@@ -225,7 +225,7 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 
 ### `steam_get_library`
 - **Parameters**: none
-- **Returns**: `SteamLibItem[]` — one per imported `steam_game` item: the flattened `Item` plus `app_id`, `is_installed`, `size_on_disk`, `playtime_minutes`, cover URLs (`icon_url`, `header_image`, `library_image`, `library_hero`, `library_logo`), and `collections: string[]` (the names of the `steam_collection` tags the game belongs to)
+- **Returns**: `SteamLibItem[]` — one per imported `steam_game` item: the flattened `Item` plus `app_id`, `is_installed`, `size_on_disk`, `playtime_minutes`, cover URLs (`icon_url`, `header_image`, `library_image`, `library_hero`, `library_logo`), `collections: string[]` (names of the `steam_collection` / `steam_favorites` tags the game belongs to), and `favorites_name: string | null` (the Favorites collection's localised name if the game is in it, so the sidebar can pin that group to the top)
 - **Errors**: DB failure
 - **Owner**: `commands/steam_commands.rs` (query in `db/queries/steam_lib_queries.rs`)
 - **Note**: The Steam page's data source — it reads synced library items from the DB rather than the in-memory scan, so every Steam game is a first-class `Item` with a stable id. The scan/sync flow (`steam_scan` + `steam_sync`) only refreshes the DB; the frontend reloads this after each sync via the store's `lastSyncAt`.

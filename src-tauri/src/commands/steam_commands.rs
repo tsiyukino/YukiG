@@ -107,28 +107,37 @@ fn apply_steam_category_tags(
 /// Color for tags derived from Steam Collections (Steam's blue-grey).
 const STEAM_COLLECTION_TAG_COLOR: &str = "#66c0f4";
 
-/// Maps a game's Steam Collections to `steam_collection` tags and assigns them.
+/// Maps a game's Steam Collections to tags and assigns them.
 ///
 /// A Steam Collection is a many-to-many grouping (a game can be in several), so
-/// it maps to tags rather than to a single YukiG collection. The dedicated
-/// `steam_collection` tag type lets the Steam page pick collections out of the
-/// tag set without guessing by colour. The "Favorites" collection is skipped —
-/// it is surfaced through the item's `is_favorite` flag, not as a tag.
+/// it maps to tags rather than to a single YukiG collection. The `steam_collection`
+/// tag type lets the Steam page pick collections out of the tag set without
+/// guessing by colour. The built-in Favorites collection (matched against
+/// `favorites_name`) gets its own `steam_favorites` type so the page can pin it
+/// to the top of the sidebar; its member games are also flagged `is_favorite`
+/// (handled by the caller).
+///
+/// Reclassify (not just upsert): a collection tag's type is authoritative from
+/// its source here, so this heals historical tags created as plain `regular`
+/// under the old scheme.
 fn apply_steam_collection_tags(
     conn: &rusqlite::Connection,
     item_id: &str,
     collections: &[String],
+    favorites_name: Option<&str>,
 ) {
     for name in collections {
         let name = name.trim();
-        if name.is_empty() || name.eq_ignore_ascii_case("favorites") {
+        if name.is_empty() {
             continue;
         }
-        // Reclassify (not just upsert): a collection tag's type is authoritative
-        // from its source here, so this heals historical tags created as plain
-        // `regular` under the old scheme.
+        let tag_type = if favorites_name == Some(name) {
+            "steam_favorites"
+        } else {
+            "steam_collection"
+        };
         if let Ok(tag) =
-            tag_queries::upsert_reclassify(conn, name, STEAM_COLLECTION_TAG_COLOR, "steam_collection")
+            tag_queries::upsert_reclassify(conn, name, STEAM_COLLECTION_TAG_COLOR, tag_type)
         {
             let _ = tag_queries::assign(conn, item_id, &tag.id);
         }
@@ -586,8 +595,14 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
         metadata.insert("steam_app_type".to_string(), game.app_type.to_lowercase());
 
         // Only installed games can be favorited — uninstalled games are excluded.
-        let is_fav = game.is_installed
-            && game.collections.iter().any(|c| c.eq_ignore_ascii_case("favorites"));
+        // Membership in Steam's Favorites collection is matched by its localised
+        // name (from the scan), since the collection id is not carried per game.
+        let in_favorites = scan
+            .favorites_name
+            .as_deref()
+            .map(|f| game.collections.iter().any(|c| c == f))
+            .unwrap_or(false);
+        let is_fav = game.is_installed && in_favorites;
         let sort_order = if game.is_installed { 0i64 } else { 10000i64 };
 
         if let Some(item_id) = existing_imports.get(&game.app_id) {
@@ -611,7 +626,7 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
             }
             // Update tags and online status on every sync (categories/collections may have changed).
             apply_steam_category_tags(&conn, item_id, &game.categories);
-            apply_steam_collection_tags(&conn, item_id, &game.collections);
+            apply_steam_collection_tags(&conn, item_id, &game.collections, scan.favorites_name.as_deref());
             if is_online_active(&game.categories) {
                 let _ = conn.execute(
                     "INSERT INTO game_status (item_id, story_status, online_status, snooze_until) \
@@ -649,7 +664,7 @@ pub fn steam_sync(db: State<DbConnection>) -> Result<SyncResult, String> {
                 result.errors.push(format!("Metadata for '{}': {}", game.name, e));
             }
             apply_steam_category_tags(&conn, &item.id, &game.categories);
-            apply_steam_collection_tags(&conn, &item.id, &game.collections);
+            apply_steam_collection_tags(&conn, &item.id, &game.collections, scan.favorites_name.as_deref());
             if is_online_active(&game.categories) {
                 let _ = conn.execute(
                     "INSERT INTO game_status (item_id, story_status, online_status, snooze_until) \

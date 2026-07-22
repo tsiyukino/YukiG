@@ -10,24 +10,46 @@ export interface CollectionGroup {
   games: SteamLibItem[];
 }
 
+/** Name of the catch-all group for games in no Steam Collection. */
+const UNCATEGORIZED = "Steam — Uncategorized";
+
+/**
+ * Orders two group names the way the Steam client sidebar does: the Favorites
+ * collection (whose localised name is `favoritesName`) pinned to the top, the
+ * Uncategorized catch-all pinned to the bottom, and everything else
+ * alphabetically (locale-aware).
+ */
+function compareGroupNames(a: string, b: string, favoritesName: string | null): number {
+  if (a === b) return 0;
+  if (favoritesName) {
+    if (a === favoritesName) return -1;
+    if (b === favoritesName) return 1;
+  }
+  if (a === UNCATEGORIZED) return 1;
+  if (b === UNCATEGORIZED) return -1;
+  return a.localeCompare(b);
+}
+
 /**
  * Builds a list of CollectionGroup from the library games.
  *
  * Every game belongs to a group by its `collections` (the Steam Collections it
  * is tagged with); a game in several collections appears in each. Games in no
- * collection go to "Steam — Uncategorized". Within each group, installed games
- * come first, then most-played descending.
+ * collection go to "Steam — Uncategorized". Groups are ordered like the Steam
+ * client (Favorites first, Uncategorized last, the rest alphabetically); within
+ * a group, installed games come first, then most-played descending.
  *
  * @param games - The Steam library games (from steam_get_library)
  * @returns Sorted array of collection groups (empty groups omitted)
  */
 export function buildGroups(games: SteamLibItem[]): CollectionGroup[] {
   const map = new Map<string, SteamLibItem[]>();
-  map.set("Steam — Uncategorized", []);
+  // The Favorites collection's localised name, taken from any game in it.
+  const favoritesName = games.find((g) => g.favorites_name)?.favorites_name ?? null;
 
   for (const game of games) {
     if (game.collections.length === 0) {
-      map.get("Steam — Uncategorized")!.push(game);
+      (map.get(UNCATEGORIZED) ?? map.set(UNCATEGORIZED, []).get(UNCATEGORIZED)!).push(game);
       continue;
     }
     for (const col of game.collections) {
@@ -39,14 +61,14 @@ export function buildGroups(games: SteamLibItem[]): CollectionGroup[] {
   const result: CollectionGroup[] = [];
   for (const [name, g] of map) {
     if (g.length === 0) continue;
-    // Primary: installed games before uninstalled.
-    // Secondary (within each group): most-played descending.
+    // Within a group: installed first, then most-played descending.
     g.sort((a, b) => {
       if (a.is_installed !== b.is_installed) return a.is_installed ? -1 : 1;
       return b.playtime_minutes - a.playtime_minutes;
     });
     result.push({ name, games: g });
   }
+  result.sort((x, y) => compareGroupNames(x.name, y.name, favoritesName));
   return result;
 }
 

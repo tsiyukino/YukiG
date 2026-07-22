@@ -37,6 +37,7 @@ Single `Mutex<Connection>` stored as Tauri managed state (`DbConnection`). WAL m
 | `016_demote_steam_collection_groupings.sql` | Applied | Demoted legacy "Steam collection:" groupings to regular tags |
 | `017_remove_grouping_tags.sql` | Applied | Removed grouping tags and the `icon`/`description`/`sort_order` tag columns (015 revert) |
 | `018_steam_collection_tag_type.sql` | Applied | Reclassified Steam-collection tags to the `steam_collection` tag type |
+| `019_fix_steam_collection_color.sql` | Applied | Fixed 018's colour miss — reclassified the `#1b2838` collection tags too |
 
 ## Schema
 

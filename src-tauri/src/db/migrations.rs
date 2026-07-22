@@ -61,6 +61,7 @@ fn all_migrations() -> Vec<(&'static str, &'static str)> {
         ("016_demote_steam_collection_groupings", include_str!("../../migrations/016_demote_steam_collection_groupings.sql")),
         ("017_remove_grouping_tags", include_str!("../../migrations/017_remove_grouping_tags.sql")),
         ("018_steam_collection_tag_type", include_str!("../../migrations/018_steam_collection_tag_type.sql")),
+        ("019_fix_steam_collection_color", include_str!("../../migrations/019_fix_steam_collection_color.sql")),
     ]
 }
 
@@ -427,6 +428,43 @@ mod tests {
         assert_eq!(ty("t-action"), "steam_collection", "blue tag on a steam game is reclassified");
         assert_eq!(ty("t-userblue"), "regular", "blue tag on a local game only is left alone");
         assert_eq!(ty("t-mood"), "regular", "non-blue tag on a steam game is left alone");
+    }
+
+    /// Migration 019 reclassifies the dark-blue (`#1b2838`) regular tags that
+    /// migration 018 missed, while sparing the "Steam — Uncategorized"
+    /// placeholder and same-typed category tags of other colours.
+    #[test]
+    fn migration_019_reclassifies_dark_blue_collections() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        ensure_migrations_table(&conn).unwrap();
+        for (name, sql) in all_migrations() {
+            if name == "019_fix_steam_collection_color" {
+                break;
+            }
+            apply(&conn, name, sql).unwrap();
+        }
+
+        conn.execute_batch(
+            "INSERT INTO items (id, collection_id, name, folder_path, strategy_type, created_at, updated_at)
+             VALUES ('sg', 'steam-system', 'RE', 'C:/re', 'steam_game', 't', 't');
+             INSERT INTO tags (id, name, color, group_id, tag_type) VALUES
+                ('t-re',  'Resident Evil',        '#1b2838', NULL, 'regular'),
+                ('t-unc', 'Steam — Uncategorized', '#1b2838', NULL, 'regular'),
+                ('t-ach', 'Achievements',          '#f59e0b', NULL, 'regular');
+             INSERT INTO item_tags (item_id, tag_id) VALUES ('sg','t-re'),('sg','t-unc'),('sg','t-ach');",
+        ).unwrap();
+
+        let sql = all_migrations().into_iter()
+            .find(|(n, _)| *n == "019_fix_steam_collection_color").unwrap().1;
+        apply(&conn, "019_fix_steam_collection_color", sql).unwrap();
+
+        let ty = |id: &str| -> String {
+            conn.query_row("SELECT tag_type FROM tags WHERE id = ?1", [id], |r| r.get(0)).unwrap()
+        };
+        assert_eq!(ty("t-re"), "steam_collection", "dark-blue collection reclassified");
+        assert_eq!(ty("t-unc"), "regular", "the Uncategorized placeholder is spared");
+        assert_eq!(ty("t-ach"), "regular", "a differently-coloured category tag is untouched");
     }
 
     /// A migration that leaves a dangling foreign key must roll back and not be

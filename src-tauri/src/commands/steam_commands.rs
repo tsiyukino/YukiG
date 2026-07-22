@@ -124,8 +124,11 @@ fn apply_steam_collection_tags(
         if name.is_empty() || name.eq_ignore_ascii_case("favorites") {
             continue;
         }
+        // Reclassify (not just upsert): a collection tag's type is authoritative
+        // from its source here, so this heals historical tags created as plain
+        // `regular` under the old scheme.
         if let Ok(tag) =
-            tag_queries::upsert_typed(conn, name, STEAM_COLLECTION_TAG_COLOR, "steam_collection")
+            tag_queries::upsert_reclassify(conn, name, STEAM_COLLECTION_TAG_COLOR, "steam_collection")
         {
             let _ = tag_queries::assign(conn, item_id, &tag.id);
         }

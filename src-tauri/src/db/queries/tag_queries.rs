@@ -76,6 +76,35 @@ pub fn upsert_typed(conn: &Connection, name: &str, color: &str, tag_type: &str) 
     }
 }
 
+/// Ensures a tag named `name` exists **and** carries `tag_type`, returning it.
+///
+/// Like `upsert_typed`, but authoritative about the type: if the tag already
+/// exists with a different type it is reclassified to `tag_type`. Used for Steam
+/// Collections, whose source (the game's `collections`) is the source of truth —
+/// this lets sync heal historical collection tags that were created under an
+/// earlier scheme (e.g. as plain `regular` tags with a different colour).
+pub fn upsert_reclassify(conn: &Connection, name: &str, color: &str, tag_type: &str) -> Result<Tag> {
+    let existing = conn.query_row(
+        "SELECT id, name, color, group_id, tag_type FROM tags WHERE name = ?1",
+        rusqlite::params![name],
+        row_to_tag,
+    );
+    match existing {
+        Ok(tag) => {
+            if tag.tag_type != tag_type {
+                conn.execute(
+                    "UPDATE tags SET tag_type = ?1 WHERE id = ?2",
+                    rusqlite::params![tag_type, &tag.id],
+                )?;
+                return Ok(Tag { tag_type: tag_type.to_string(), ..tag });
+            }
+            Ok(tag)
+        }
+        Err(rusqlite::Error::QueryReturnedNoRows) => create_typed(conn, name, color, tag_type),
+        Err(e) => Err(e),
+    }
+}
+
 /// Creates a new mood tag (`tag_type = 'mood'`) and returns it.
 pub fn create_mood(conn: &Connection, name: &str, color: &str) -> Result<Tag> {
     create_typed(conn, name, color, "mood")
@@ -368,5 +397,30 @@ mod tests {
         let conn = test_db();
         assert_eq!(upsert_mood(&conn, "Cozy", "#0f0").unwrap().tag_type, "mood");
         assert_eq!(upsert_regular(&conn, "Misc", "#0f0").unwrap().tag_type, "regular");
+    }
+
+    #[test]
+    fn upsert_reclassify_heals_existing_type() {
+        let conn = test_db();
+        // A historical collection tag stored as plain regular (old scheme).
+        let old = create_typed(&conn, "Resident Evil", "#1b2838", "regular").unwrap();
+        let healed = upsert_reclassify(&conn, "Resident Evil", "#66c0f4", "steam_collection").unwrap();
+        assert_eq!(healed.id, old.id, "same tag, not a duplicate");
+        assert_eq!(healed.tag_type, "steam_collection", "type is corrected in place");
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tags WHERE name = 'Resident Evil'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1, "no duplicate created");
+        // Idempotent: a second call leaves it as steam_collection.
+        let again = upsert_reclassify(&conn, "Resident Evil", "#66c0f4", "steam_collection").unwrap();
+        assert_eq!(again.tag_type, "steam_collection");
+    }
+
+    #[test]
+    fn upsert_reclassify_creates_when_absent() {
+        let conn = test_db();
+        let t = upsert_reclassify(&conn, "New Coll", "#66c0f4", "steam_collection").unwrap();
+        assert_eq!(t.tag_type, "steam_collection");
+        assert_eq!(t.name, "New Coll");
     }
 }

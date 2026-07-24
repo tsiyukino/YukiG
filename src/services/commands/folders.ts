@@ -48,3 +48,16 @@ export async function folderListImages(path: string): Promise<FolderImage[]> {
 export async function folderChildren(path: string): Promise<FolderListing> {
   return invoke("folder_children", { path });
 }
+
+/**
+ * Returns the cached thumbnail path for a screenshot, generating it if needed.
+ * The grid renders this small file rather than decoding the full-resolution
+ * source in the webview. Cache is keyed by source path + size + mtime, so an
+ * edited screenshot regenerates automatically.
+ * @param path - Absolute path of the source image
+ * @returns Absolute path of the cached thumbnail (feed to `convertFileSrc`)
+ * @throws {string} If the source is missing or cannot be decoded
+ */
+export async function screenshotThumb(path: string): Promise<string> {
+  return invoke("screenshot_thumb", { path });
+}

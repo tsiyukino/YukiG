@@ -1,9 +1,9 @@
 /**
  * Collapsible screenshots preview for a user-set folder: loads the folder's
- * image list lazily on first expand and renders each via ScreenshotThumb
- * (lazy image + content-visibility so off-screen tiles stay cheap). Clicking a
- * tile opens the original with the system viewer. Shared by local and Steam
- * games.
+ * image list lazily on first expand and renders each via ScreenshotThumb,
+ * which shows a backend-cached downscaled thumbnail instead of decoding the
+ * full-resolution source. Clicking a tile opens the original with the system
+ * viewer. Shared by local and Steam games.
  */
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Image } from "lucide-react";

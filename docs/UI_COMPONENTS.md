@@ -207,7 +207,7 @@ Presentational "Details" card of labelled path rows with caller-composed action 
 Collapsible screenshots grid for any folder: lazy `folder_list_images` on first expand; each image renders through `ScreenshotThumb`, which canvas-downscales the source so full-resolution shots don't stall the webview. Click opens the system viewer. **Props**: `folder: string`.
 
 ### `ScreenshotThumb` (`src/components/detail/ScreenshotThumb.tsx`)
-One screenshot tile: decodes its source once off-screen, paints a ~320px canvas thumbnail, keeps only that bitmap. `content-visibility: auto` skips off-screen tiles. **Props**: `path, filename, onOpen`.
+One screenshot tile: requests a backend-cached downscaled thumbnail (`screenshot_thumb`) and renders that few-KB file — never the full-resolution source. **Props**: `path, filename, onOpen`.
 
 ### `ModsCard` (`src/components/detail/ModsCard.tsx`)
 Collapsible mods file browser: each directory's children load on expand via `folder_children` (one shallow read per directory), so deep mod folders stay fast. Root loads on first card open. **Props**: `folder: string`.

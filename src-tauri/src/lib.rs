@@ -159,6 +159,7 @@ pub fn run() {
             // Folder browsing commands
             folder_list_images,
             folder_children,
+            screenshot_thumb,
             // Watcher commands
             watcher_add,
             watcher_remove,

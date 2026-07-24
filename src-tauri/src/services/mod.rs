@@ -5,6 +5,7 @@
 pub mod config;
 pub mod file_watcher;
 pub mod fs_browse;
+pub mod image_thumb;
 pub mod launcher;
 pub mod preview;
 pub mod process_tracker;

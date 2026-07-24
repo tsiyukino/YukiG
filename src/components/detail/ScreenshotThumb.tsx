@@ -1,14 +1,16 @@
 /**
  * A single screenshot thumbnail.
  *
- * Renders the source image directly (lazy + async decode). A prior attempt to
- * canvas-downscale each source failed in the WebView — `toDataURL` on an
- * asset-protocol image trips cross-origin tainting and leaves the tile stuck
- * on its placeholder — so the tile shows the real image and relies on
- * `content-visibility` (in the stylesheet) to skip off-screen tiles instead.
+ * Requests a cached, downscaled thumbnail from the backend (see
+ * `screenshot_thumb`) and renders that few-KB file — never the full-resolution
+ * source. This keeps the grid responsive: no megapixel decode in the webview,
+ * and because the thumbnail is a small real file it stays cached in the DOM
+ * without the reload-on-scroll churn that `content-visibility` caused.
+ * Clicking opens the original with the system viewer.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { screenshotThumb } from "@/services/tauriCommands";
 import styles from "./ScreenshotThumb.module.css";
 
 interface ScreenshotThumbProps {
@@ -20,22 +22,27 @@ interface ScreenshotThumbProps {
 }
 
 /**
- * Renders one screenshot tile.
+ * Renders one screenshot tile backed by a cached thumbnail.
  */
 export default function ScreenshotThumb({ path, filename, onOpen }: ScreenshotThumbProps) {
-  const [loaded, setLoaded] = useState(false);
+  const [thumbSrc, setThumbSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setThumbSrc(null);
+    setFailed(false);
+    screenshotThumb(path)
+      .then((cached) => { if (!cancelled) setThumbSrc(convertFileSrc(cached)); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [path]);
 
   return (
     <button className={styles.tile} onClick={onOpen} title={filename}>
-      {!loaded && <span className={styles.placeholder} />}
-      <img
-        className={loaded ? styles.img : styles.imgHidden}
-        src={convertFileSrc(path)}
-        alt={filename}
-        loading="lazy"
-        decoding="async"
-        onLoad={() => setLoaded(true)}
-      />
+      {thumbSrc && <img className={styles.img} src={thumbSrc} alt={filename} />}
+      {!thumbSrc && !failed && <span className={styles.placeholder} />}
+      {failed && <span className={styles.failed} />}
     </button>
   );
 }

@@ -62,6 +62,11 @@ Win32 API bindings. Used in `services/file_drop.rs` for the OLE `IDropTarget` im
 ### `webview2-com = "0.38"` (Windows only)
 WebView2 COM bindings. Used in `services/file_drop.rs` to call `ICoreWebView2Controller4::SetAllowExternalDrop(true)`, which enables browser-level `dragenter`/`dragover`/`drop` DOM events for external files (used for the drop overlay animation). Internally depends on `windows = "0.61"`.
 
+### `image = "0.25"` + `default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"]`
+Image decoding and resizing. Used only by `services/image_thumb.rs` to generate cached screenshot thumbnails. Default features are off — enable exactly the formats `fs_browse::IMAGE_EXTS` lists, since the crate pulls a heavy dependency tree per format and enabling all of them noticeably inflates build time and binary size.
+
+**Quirk — canvas is not an option in the webview**: an earlier attempt downscaled screenshots with a `<canvas>` on the frontend. `toDataURL` on an image loaded via the Tauri asset protocol trips cross-origin tainting and silently fails, so thumbnailing must happen in Rust. Generate on Tauri's blocking pool (`spawn_blocking`) — decoding on the async runtime's core threads would stall other commands.
+
 ## npm Packages
 
 ### `@tauri-apps/api = "^2"`

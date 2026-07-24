@@ -187,6 +187,13 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Owner**: `commands/folder_commands.rs` (logic in `services/fs_browse.rs`)
 - **Note**: Backs the Mods file tree — non-recursive, one directory per call. The frontend fetches the root then each directory as it is expanded, so a deep mod folder is never walked several levels up front (a recursive walk with per-entry `stat` took ~3 s on a 846-item mod folder; this shallow read is ~1 ms). `truncated` marks a directory that had more than 500 entries.
 
+### `screenshot_thumb`
+- **Parameters**: `path: string`
+- **Returns**: `string` — absolute path of the cached thumbnail (feed to `convertFileSrc`)
+- **Errors**: Source missing or undecodable
+- **Owner**: `commands/folder_commands.rs` (logic in `services/image_thumb.rs`)
+- **Note**: Generates a ≤400px JPEG thumbnail for a screenshot and caches it under `{data_dir}/screenshot_thumbs/`, so the grid never decodes full-resolution images in the webview. Cache filename is a hash of source path + size + mtime, so an edited screenshot regenerates on its own. Runs on the blocking pool.
+
 ## Watcher
 
 ### `watcher_add`

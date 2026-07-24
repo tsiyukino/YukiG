@@ -15,17 +15,16 @@
  * - Lists all Steam accounts from loginusers.vdf.
  * - "Switch" button rewrites loginusers.vdf + registry then restarts Steam.
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { RefreshCw, Users, Library, Gamepad2, CheckCircle2 } from "lucide-react";
-import { steamSync, steamGetGameDbInfo, SteamGameDbInfo, gameStatusBulkInit } from "@/services/tauriCommands";
-import { SteamGame, SyncResult } from "@/types/steam";
+import { RefreshCw, Users, Library, CheckCircle2 } from "lucide-react";
+import { steamSync, gameStatusBulkInit } from "@/services/tauriCommands";
+import { SyncResult } from "@/types/steam";
 import SteamIcon from "@/components/common/SteamIcon";
 import { useSteamStore, steamStoreScan } from "@/store/steamStore";
 import { useSteamLibrary } from "@/hooks/useSteamLibrary";
 import { buildGroups } from "@/utils/steamFormatters";
 import LibraryTab from "@/components/steam/LibraryTab";
-import GameDetailTab from "@/components/steam/GameDetailTab";
 import AccountsTab from "@/components/steam/AccountsTab";
 // Feature-wide stylesheet for all steam/ components (sp-* and sdt-* classes).
 // Global by design for now — see docs/decisions/2026-07-06_steam-css-exception.md.
@@ -33,7 +32,7 @@ import "@/components/steam/steam.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "library" | "detail" | "accounts";
+type Tab = "library" | "accounts";
 
 // ─── Root page ────────────────────────────────────────────────────────────────
 
@@ -47,19 +46,12 @@ export default function SteamPage() {
   const [tab, setTab] = useState<Tab>("library");
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const [detailGame, setDetailGame] = useState<SteamGame | null>(null);
-  const [gameDbInfo, setGameDbInfo] = useState<Record<number, SteamGameDbInfo>>({});
 
   // Scan store still drives Sync + hourly refresh; the library view reads the
   // synced games from the DB (via useSteamLibrary), which re-loads after a sync.
   const { result: scanResult, loading: scanning } = useSteamStore();
   const { games: libGames, loading: libLoading, error: libError, reload: reloadLibrary } = useSteamLibrary();
   const groups = buildGroups(libGames);
-
-  // Load DB info on mount and after syncs
-  useEffect(() => {
-    steamGetGameDbInfo().then(setGameDbInfo).catch(() => {});
-  }, []);
 
   async function runScan() {
     await steamStoreScan();
@@ -77,8 +69,6 @@ export default function SteamPage() {
     try {
       const result = await steamSync();
       setSyncResult(result);
-      // Refresh DB info after sync in case items were added/removed.
-      steamGetGameDbInfo().then(setGameDbInfo).catch(() => {});
       // Re-run status auto-detection so playtime/categories from this sync are applied.
       gameStatusBulkInit().catch(() => {});
     } catch (_) {
@@ -86,11 +76,6 @@ export default function SteamPage() {
     } finally {
       setSyncing(false);
     }
-  }
-
-  function handleSeeDetails(game: SteamGame) {
-    setDetailGame(game);
-    setTab("detail");
   }
 
   const isLoading = scanning || syncing;
@@ -112,15 +97,6 @@ export default function SteamPage() {
               <Library size={13} />
               Library
             </button>
-            {detailGame !== null && (
-              <button
-                className={`sp-tab ${tab === "detail" ? "sp-tab--active" : ""}`}
-                onClick={() => setTab("detail")}
-              >
-                <Gamepad2 size={13} />
-                {detailGame.name}
-              </button>
-            )}
             <button
               className={`sp-tab ${tab === "accounts" ? "sp-tab--active" : ""}`}
               onClick={() => setTab("accounts")}
@@ -158,13 +134,9 @@ export default function SteamPage() {
             libGames={libGames}
             error={libError}
             scanResult={scanResult}
-            onSeeDetails={handleSeeDetails}
             onReload={reloadLibrary}
             openItemId={openItemId}
           />
-        )}
-        {tab === "detail" && detailGame !== null && (
-          <GameDetailTab game={detailGame} gameDbInfo={gameDbInfo} />
         )}
         {tab === "accounts" && <AccountsTab />}
       </div>

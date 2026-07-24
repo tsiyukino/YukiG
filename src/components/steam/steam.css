@@ -714,247 +714,58 @@
 [data-theme="dark"] .sp-row-status--on { color: var(--color-success); }
 .sp-row-fav { color: #ec4899; flex-shrink: 0; margin-left: 4px; }
 
-/* ── Detail drawer ── */
-.sp-drawer {
-  width: 280px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--color-border);
-  background: var(--color-bg);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  animation: sp-drawer-in 180ms ease;
-}
-@keyframes sp-drawer-in {
-  from { opacity: 0; transform: translateX(12px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-.sp-drawer-hero {
+/* ── In-page detail view ── */
+.sp-detail-pane {
   position: relative;
-  background: var(--color-bg-tertiary);
-  flex-shrink: 0;
-}
-.sp-drawer-hero-img {
-  width: 100%;
-  aspect-ratio: 600 / 900;
-  object-fit: cover;
-  display: block;
-}
-.sp-drawer-hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%);
-}
-.sp-drawer-close {
-  position: absolute;
-  top: 9px;
-  right: 9px;
-  background: rgba(0,0,0,0.5);
-  border: none;
-  border-radius: 5px;
-  color: #fff;
-  padding: 5px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: background var(--transition-fast);
-  z-index: 2;
-}
-.sp-drawer-close:hover { background: rgba(0,0,0,0.75); }
-.sp-drawer-hero-title {
-  position: absolute;
-  bottom: var(--space-4);
-  left: var(--space-4);
-  right: var(--space-4);
-  z-index: 1;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-}
-.sp-drawer-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-.sp-status-pill {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  width: fit-content;
-}
-.sp-status-pill--on { background: rgba(34,197,94,0.2); color: #bbf7d0; }
-.sp-status-pill--off { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
-.sp-drawer-body {
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  flex: 1;
-}
-/* Play + Favorite on same row */
-.sp-drawer-primary-row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: stretch;
-}
-/* Store row — two equal buttons */
-.sp-drawer-store-row {
-  display: flex;
-  gap: var(--space-2);
-}
-.sp-launch-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: 9px 14px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(160deg, #818cf8 0%, #6366f1 55%, #4f46e5 100%);
-  color: #fff;
-  border: 1px solid rgba(129,140,248,.35);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  flex: 1;
-  box-shadow: 0 2px 8px rgba(99,102,241,.4), inset 0 1px 0 rgba(255,255,255,.15);
-  transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
-}
-.sp-launch-btn:hover:not(:disabled) {
-  background: linear-gradient(160deg, #a5b4fc 0%, #818cf8 50%, #6366f1 100%);
-  border-color: rgba(165,180,252,.45);
-  box-shadow: 0 0 0 3px rgba(99,102,241,.2), 0 4px 14px rgba(99,102,241,.5), inset 0 1px 0 rgba(255,255,255,.2);
-  transform: translateY(-1px);
-}
-.sp-launch-btn:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(99,102,241,.35), inset 0 1px 0 rgba(255,255,255,.1);
-}
-.sp-launch-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.sp-install-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: 9px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  flex: 1;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
-}
-.sp-install-btn:hover { background: var(--color-bg-tertiary); border-color: var(--color-accent); color: var(--color-accent); }
-.sp-fav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
-}
-.sp-fav-btn:hover { background: var(--color-bg-tertiary); color: #f43f5e; border-color: #f43f5e; }
-.sp-fav-btn--active { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,0.08); }
-.sp-store-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-  font-size: 11.5px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-  white-space: nowrap;
-  flex: 1;
-}
-.sp-store-btn--half { flex: 1; }
-.sp-store-btn:hover { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
-.sp-detail-link-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-3);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  width: 100%;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-.sp-detail-link-btn:hover { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
-.sp-drawer-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   overflow: hidden;
 }
-.sp-detail-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border-subtle);
-}
-.sp-detail-row:last-child { border-bottom: none; }
-.sp-detail-icon {
-  flex-shrink: 0;
-  color: var(--color-text-muted);
-  margin-top: 1px;
-}
-.sp-detail-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-.sp-detail-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-}
-.sp-detail-val {
+/* Back and favourite float over the hero and stay put while content scrolls */
+.sp-detail-back {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px 5px 9px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
   font-size: 12px;
-  color: var(--color-text-primary);
-  word-break: break-all;
-  line-height: 1.4;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background var(--transition-fast);
 }
-.sp-mono { font-family: var(--font-mono); font-size: 11px; }
-
-/* ── Game detail tab ── */
-.sp-detail-tab {
-  flex: 1;
-  overflow-y: auto;
+.sp-detail-back:hover { background: rgba(0, 0, 0, 0.72); }
+.sp-detail-fav {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 5;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
+.sp-detail-fav:hover { background: rgba(0, 0, 0, 0.72); color: #f43f5e; }
+.sp-detail-fav--on { color: #f43f5e; }
+.sp-detail-fav--on svg { fill: currentColor; }
+
 /* ── Game Detail Tab (sdt-*) ── */
 .sdt-root {
   flex: 1;

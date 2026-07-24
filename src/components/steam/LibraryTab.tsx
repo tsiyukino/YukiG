@@ -9,16 +9,14 @@
  */
 import { useState, useRef, useEffect } from "react";
 import {
-  RefreshCw, AlertCircle, Gamepad2, Search, LayoutGrid, List, X,
+  RefreshCw, AlertCircle, ArrowLeft, Gamepad2, Heart, Search, LayoutGrid, List,
 } from "lucide-react";
-import {
-  steamLaunchGame, steamInstallGame, itemSetFavorite,
-} from "@/services/tauriCommands";
-import { SteamGame, SteamLibItem, SteamScanResult } from "@/types/steam";
+import { itemSetFavorite } from "@/services/tauriCommands";
+import { SteamLibItem, SteamScanResult } from "@/types/steam";
 import { CollectionGroup } from "@/utils/steamFormatters";
 import GameCard from "./GameCard";
 import GameRow from "./GameRow";
-import DetailDrawer from "./DetailDrawer";
+import GameDetailTab from "./GameDetailTab";
 import LibrarySidebar from "./LibrarySidebar";
 import { useSteamRunningApp } from "@/hooks/useSteamRunningApp";
 
@@ -30,17 +28,16 @@ interface LibraryTabProps {
   loading: boolean;
   /** Grouped games list produced by buildGroups() from the library. */
   groups: CollectionGroup[];
-  /** The flat library game list, for sidebar stats and drawer favourite lookup. */
+  /** The flat library game list, for sidebar stats and favourite state. */
   libGames: SteamLibItem[];
   /** Error message from the last load, or null. */
   error: string | null;
-  /** Full scan result, used only to open the detail drawer (S2 removes this). */
+  /** Full scan result — the detail view still renders from the scanned game
+   *  (unified in a later slice), resolved by app id. */
   scanResult: SteamScanResult | null;
-  /** Called when the user clicks "See Details" in the drawer. */
-  onSeeDetails: (game: SteamGame) => void;
   /** Re-reads the library from the DB after a favourite toggle. */
   onReload: () => void;
-  /** item_id of a Steam game to auto-open in the drawer on load. */
+  /** item_id of a Steam game to auto-open in detail on load. */
   openItemId?: string | null;
 }
 
@@ -64,12 +61,10 @@ function StateScreen({ icon, title, sub, spin, error }: {
  * Auto-selects the first collection on load and can auto-open a drawer for a
  * specific game when navigated from the home page favorites.
  */
-export default function LibraryTab({ loading, groups, libGames, error, scanResult, onSeeDetails, onReload, openItemId }: LibraryTabProps) {
+export default function LibraryTab({ loading, groups, libGames, error, scanResult, onReload, openItemId }: LibraryTabProps) {
   const runningAppId = useSteamRunningApp();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [detail, setDetail] = useState<SteamGame | null>(null);
-  const [launching, setLaunching] = useState(false);
-  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [detailGame, setDetailGame] = useState<SteamLibItem | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const openHandledRef = useRef(false);
@@ -81,40 +76,37 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
     }
   }, [groups, selectedGroup]);
 
-  /** Opens the detail drawer for a library game via its Steam app id. */
-  function openDrawer(game: SteamLibItem) {
-    // The drawer still renders from the scan's SteamGame (S2 unifies this).
-    const scanned = scanResult?.games.find((g) => g.app_id === game.app_id) ?? null;
-    setDetail((cur) => (cur?.app_id === game.app_id ? null : scanned));
+  // Re-resolve the open game from the fresh library list so favourite toggles
+  // (which reload the list) are reflected without reopening the detail.
+  const detailLive = detailGame
+    ? libGames.find((g) => g.id === detailGame.id) ?? detailGame
+    : null;
+
+  function closeDetail() {
+    setDetailGame(null);
   }
 
-  // Auto-open drawer when navigating from a Steam favorite on the home page.
+  // Esc returns from the detail view to the collection cards.
   useEffect(() => {
-    if (!openItemId || loading || !scanResult || openHandledRef.current) return;
-    // The requested item_id is a library game's id; find it and its app_id.
-    const libGame = groups.flatMap((g) => g.games).find((g) => g.id === openItemId);
+    if (!detailGame) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDetailGame(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [detailGame]);
+
+  // Auto-open a game's detail when navigating from the home page favorites.
+  useEffect(() => {
+    if (!openItemId || loading || openHandledRef.current) return;
+    const libGame = libGames.find((g) => g.id === openItemId);
     if (!libGame) return;
-    const scanned = scanResult.games.find((g) => g.app_id === libGame.app_id) ?? null;
-    if (!scanned) return;
     openHandledRef.current = true;
     // Switch to the collection that contains this game (first match).
     const group = groups.find((g) => g.games.some((gm) => gm.id === openItemId));
     if (group) setSelectedGroup(group.name);
-    setDetail(scanned);
-  }, [openItemId, loading, scanResult, groups]);
-
-  async function handleLaunch(appId: number) {
-    setLaunching(true);
-    setLaunchError(null);
-    try { await steamLaunchGame(appId); }
-    catch (e) { setLaunchError(String(e)); }
-    finally { setLaunching(false); }
-  }
-
-  async function handleInstall(appId: number) {
-    try { await steamInstallGame(appId); }
-    catch (e) { setLaunchError(String(e)); }
-  }
+    setDetailGame(libGame);
+  }, [openItemId, loading, libGames, groups]);
 
   async function handleToggleFavorite(game: SteamLibItem) {
     try {
@@ -148,15 +140,14 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
     : currentGroup?.games ?? [];
   const panelTitle = searching ? "Search Results" : currentGroup?.name ?? "";
 
-  const hasDrawer = detail !== null;
-
   return (
     <div className="sp-library">
       <LibrarySidebar
         groups={groups}
         selectedGroup={selectedGroup}
-        onSelectGroup={(name) => { setSelectedGroup(name); setDetail(null); setSearch(""); }}
-        onSelectGame={(game) => openDrawer(game)}
+        onSelectGroup={(name) => { setSelectedGroup(name); closeDetail(); setSearch(""); }}
+        onSelectGame={(game) => setDetailGame(game)}
+        activeAppId={detailLive?.app_id ?? null}
         search={search}
         onSearchChange={setSearch}
         runningAppId={runningAppId}
@@ -164,18 +155,16 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
         totalGames={libGames.length}
       />
 
-      {/* Clicking the main panel background (not a game card) closes the drawer */}
-      <main className="sp-main" onClick={detail ? () => setDetail(null) : undefined}>
-        {launchError && (
-          <div className="sp-error-banner">
-            <AlertCircle size={13} />
-            {launchError}
-            <button className="sp-error-dismiss" onClick={() => setLaunchError(null)}>
-              <X size={12} />
-            </button>
-          </div>
-        )}
-
+      <main className="sp-main">
+        {detailLive ? (
+          <DetailPane
+            game={detailLive}
+            scanResult={scanResult}
+            onBack={closeDetail}
+            onToggleFavorite={() => handleToggleFavorite(detailLive)}
+          />
+        ) : (
+        <>
         {(currentGroup || searching) && (
           <>
             <div className="sp-main-toolbar">
@@ -211,16 +200,15 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
                 <p>No games match "{search}"</p>
               </div>
             ) : viewMode === "grid" ? (
-              <div className={`sp-game-grid ${hasDrawer ? "sp-game-grid--narrow" : ""}`}>
+              <div className="sp-game-grid">
                 {shownGames.map((game, i) => (
                   <GameCard
                     key={game.app_id}
                     game={game}
-                    isSelected={detail?.app_id === game.app_id}
                     isFavorite={game.is_favorite}
                     isPlaying={runningAppId === game.app_id}
                     eager={i < 20}
-                    onOpen={(e) => { e.stopPropagation(); openDrawer(game); }}
+                    onOpen={() => setDetailGame(game)}
                   />
                 ))}
               </div>
@@ -230,35 +218,59 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
                   <GameRow
                     key={game.app_id}
                     game={game}
-                    isSelected={detail?.app_id === game.app_id}
                     isFavorite={game.is_favorite}
                     isPlaying={runningAppId === game.app_id}
                     eager={i < 30}
-                    onOpen={(e) => { e.stopPropagation(); openDrawer(game); }}
+                    onOpen={() => setDetailGame(game)}
                   />
                 ))}
               </div>
             )}
           </>
         )}
+        </>
+        )}
       </main>
+    </div>
+  );
+}
 
-      {detail && (() => {
-        // Resolve the library game backing this drawer for favourite state.
-        const libGame = libGames.find((g) => g.app_id === detail.app_id) ?? null;
-        return (
-          <DetailDrawer
-            game={detail}
-            onClose={() => setDetail(null)}
-            onLaunch={() => handleLaunch(detail.app_id)}
-            onInstall={() => handleInstall(detail.app_id)}
-            onDetail={() => onSeeDetails(detail)}
-            launching={launching}
-            isFavorite={libGame?.is_favorite ?? false}
-            onToggleFavorite={() => { if (libGame) handleToggleFavorite(libGame); }}
-          />
-        );
-      })()}
+/**
+ * The in-page detail view: a fixed Back/favourite bar floating over the
+ * scrolling detail content. The content still renders from the scanned
+ * SteamGame (resolved by app id) until the detail layout is unified.
+ */
+function DetailPane({ game, scanResult, onBack, onToggleFavorite }: {
+  game: SteamLibItem;
+  scanResult: SteamScanResult | null;
+  onBack: () => void;
+  onToggleFavorite: () => void;
+}) {
+  const scanned = scanResult?.games.find((g) => g.app_id === game.app_id) ?? null;
+
+  return (
+    <div className="sp-detail-pane">
+      <button className="sp-detail-back" onClick={onBack} title="Back to collection (Esc)">
+        <ArrowLeft size={14} />
+        Back
+      </button>
+      <button
+        className={`sp-detail-fav ${game.is_favorite ? "sp-detail-fav--on" : ""}`}
+        onClick={onToggleFavorite}
+        title={game.is_favorite ? "Remove from favorites" : "Add to favorites"}
+      >
+        <Heart size={14} />
+      </button>
+
+      {scanned ? (
+        <GameDetailTab game={scanned} itemId={game.id} />
+      ) : (
+        <StateScreen
+          icon={<AlertCircle size={22} />}
+          title="Details unavailable"
+          sub="Run a sync so the Steam scan can provide this game's full data."
+        />
+      )}
     </div>
   );
 }

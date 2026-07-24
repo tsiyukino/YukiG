@@ -5,7 +5,7 @@
  * in the main panel; clicking a game row opens that game directly.
  * Styles come from the steam feature stylesheet (sp-*).
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Gamepad2, Minus, Plus, Search, X } from "lucide-react";
 import { SteamLibItem } from "@/types/steam";
 import { CollectionGroup } from "@/utils/steamFormatters";
@@ -17,6 +17,9 @@ interface LibrarySidebarProps {
   onSelectGroup: (name: string) => void;
   /** Called when a game row is clicked (opens the game's detail). */
   onSelectGame: (game: SteamLibItem) => void;
+  /** App id of the game open in the detail view (null = cards view). Its row
+   *  is highlighted and its collection auto-expands while it is open. */
+  activeAppId: number | null;
   /** Global search text — filters the whole library, not just one collection. */
   search: string;
   onSearchChange: (value: string) => void;
@@ -30,12 +33,40 @@ interface LibrarySidebarProps {
  * Renders the search box, expandable collection groups, and a stats footer.
  */
 export default function LibrarySidebar({
-  groups, selectedGroup, onSelectGroup, onSelectGame,
+  groups, selectedGroup, onSelectGroup, onSelectGame, activeAppId,
   search, onSearchChange, runningAppId, totalInstalled, totalGames,
 }: LibrarySidebarProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Collection that was expanded because its game is open in detail; it
+  // collapses again when the detail view closes (Steam client behaviour).
+  const detailGroupRef = useRef<string | null>(null);
   const searching = search.trim().length > 0;
   const query = search.trim().toLowerCase();
+
+  // Entering detail expands the game's collection; leaving collapses it.
+  useEffect(() => {
+    if (activeAppId !== null) {
+      const grp = groups.find((g) => g.games.some((x) => x.app_id === activeAppId));
+      if (grp) {
+        detailGroupRef.current = grp.name;
+        setExpanded((prev) => {
+          if (prev.has(grp.name)) return prev;
+          const next = new Set(prev);
+          next.add(grp.name);
+          return next;
+        });
+      }
+    } else if (detailGroupRef.current) {
+      const name = detailGroupRef.current;
+      detailGroupRef.current = null;
+      setExpanded((prev) => {
+        if (!prev.has(name)) return prev;
+        const next = new Set(prev);
+        next.delete(name);
+        return next;
+      });
+    }
+  }, [activeAppId, groups]);
 
   function toggleExpanded(name: string) {
     setExpanded((prev) => {
@@ -104,7 +135,7 @@ export default function LibrarySidebar({
                   {g.games.map((game) => (
                     <button
                       key={game.app_id}
-                      className="sp-game-row"
+                      className={`sp-game-row ${activeAppId === game.app_id ? "sp-game-row--active" : ""}`}
                       onClick={() => onSelectGame(game)}
                       title={game.name}
                     >

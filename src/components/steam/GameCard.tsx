@@ -10,8 +10,6 @@ import { fmtBytes } from "@/utils/steamFormatters";
 interface GameCardProps {
   /** The Steam game to display. */
   game: SteamLibItem;
-  /** Whether this card is currently selected (opens the drawer). */
-  isSelected: boolean;
   /** Whether this game is in the user's favorites. */
   isFavorite: boolean;
   /** Whether this game is currently running (from Steam or from YukiG). */
@@ -27,10 +25,10 @@ interface GameCardProps {
  * Dimmed when the game is not installed. Gets a green "Playing" overlay badge
  * and outline while running.
  */
-export default function GameCard({ game, isSelected, isFavorite, isPlaying, eager, onOpen }: GameCardProps) {
+export default function GameCard({ game, isFavorite, isPlaying, eager, onOpen }: GameCardProps) {
   return (
     <button
-      className={`sp-card ${!game.is_installed ? "sp-card--uninstalled" : ""} ${isSelected ? "sp-card--selected" : ""} ${isPlaying ? "sp-card--playing" : ""}`}
+      className={`sp-card ${!game.is_installed ? "sp-card--uninstalled" : ""} ${isPlaying ? "sp-card--playing" : ""}`}
       onClick={onOpen}
     >
       <div className="sp-card-art-wrap">

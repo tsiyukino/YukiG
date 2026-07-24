@@ -223,7 +223,7 @@ Nine components under `src/components/status/` share `status.module.css`: `Overa
 
 ## Steam Page
 
-All steam components share `src/components/steam/steam.css` (global `sp-*` / `sdt-*` classes — the sanctioned exception to CSS Modules, see the decision record). `SteamPage` renders the topbar + tab switch; `LibraryTab` (with `LibrarySidebar`) hosts the game grid/list and `DetailDrawer`; `AccountsTab` lists loginusers.
+All steam components share `src/components/steam/steam.css` (global `sp-*` / `sdt-*` classes — the sanctioned exception to CSS Modules, see the decision record). `SteamPage` renders the topbar + tab switch; `LibraryTab` (with `LibrarySidebar`: global search + expandable collection groups) hosts the game grid/list and the in-page detail (`GameDetailTab` behind a floating Back/favourite bar; Esc returns); `AccountsTab` lists loginusers.
 
 ### `GameDetailTab` (`src/components/steam/GameDetailTab.tsx`)
 Composition root for the detail tab, keyed by `app_id` so child state resets per game. Children under `src/components/steam/detail/`:

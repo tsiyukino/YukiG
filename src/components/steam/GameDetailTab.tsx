@@ -1,5 +1,6 @@
 /**
- * Full game detail tab shown when "See Details" is clicked in the drawer.
+ * Full game detail view shown in the library's main panel when a game is
+ * opened from a card or a sidebar row.
  *
  * Composition root: hero banner, action row, and the two-column card layout.
  * Each card/section owns its own data (keyed by app_id so state resets when
@@ -7,7 +8,7 @@
  */
 import { useState, useCallback } from "react";
 import { AlertCircle, FolderOpen, Store, Monitor, X } from "lucide-react";
-import { steamOpenInApp, steamOpenInStore, shellOpenPath, SteamGameDbInfo } from "@/services/tauriCommands";
+import { steamOpenInApp, steamOpenInStore, shellOpenPath } from "@/services/tauriCommands";
 import { SteamGame } from "@/types/steam";
 import DetailHero from "./detail/DetailHero";
 import PlayStatsCard from "./detail/PlayStatsCard";
@@ -22,16 +23,15 @@ import CloudSavesSection from "./detail/CloudSavesSection";
 interface GameDetailTabProps {
   /** The game to show full details for. */
   game: SteamGame;
-  /** DB metadata keyed by app_id, used to get the item_id for edits. */
-  gameDbInfo: Record<number, SteamGameDbInfo>;
+  /** The library item id backing this game (enables edits), or null. */
+  itemId: string | null;
 }
 
 /**
- * Full game detail view rendered as the "detail" tab.
+ * Full game detail view rendered inside the library main panel.
  * Achievements, screenshots, and cloud saves load lazily on first expand.
  */
-export default function GameDetailTab({ game, gameDbInfo }: GameDetailTabProps) {
-  const itemId = gameDbInfo[game.app_id]?.item_id ?? null;
+export default function GameDetailTab({ game, itemId }: GameDetailTabProps) {
   const [editError, setEditError] = useState<string | null>(null);
   const [achSummary, setAchSummary] = useState<{ unlocked: number; total: number } | null>(null);
 

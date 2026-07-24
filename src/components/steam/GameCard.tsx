@@ -18,6 +18,8 @@ interface GameCardProps {
   eager?: boolean;
   /** Called when the card is clicked. */
   onOpen: (e: React.MouseEvent) => void;
+  /** Called on right-click (opens the game's context menu). */
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 /**
@@ -25,11 +27,12 @@ interface GameCardProps {
  * Dimmed when the game is not installed. Gets a green "Playing" overlay badge
  * and outline while running.
  */
-export default function GameCard({ game, isFavorite, isPlaying, eager, onOpen }: GameCardProps) {
+export default function GameCard({ game, isFavorite, isPlaying, eager, onOpen, onContextMenu }: GameCardProps) {
   return (
     <button
       className={`sp-card ${!game.is_installed ? "sp-card--uninstalled" : ""} ${isPlaying ? "sp-card--playing" : ""}`}
       onClick={onOpen}
+      onContextMenu={onContextMenu}
     >
       <div className="sp-card-art-wrap">
         <img

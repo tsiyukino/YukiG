@@ -4,12 +4,18 @@
  *
  * Composition root: hero banner, action row, and the two-column card layout.
  * Each card/section owns its own data (keyed by app_id so state resets when
- * the selected game changes). Styles come from the steam feature stylesheet.
+ * the selected game changes). Owns the Edit modal and the delete
+ * confirmation for the header's icon actions.
+ * Styles come from the steam feature stylesheet.
  */
 import { useState, useCallback } from "react";
 import { AlertCircle, FolderOpen, Store, Monitor, X } from "lucide-react";
-import { steamOpenInApp, steamOpenInStore, shellOpenPath } from "@/services/tauriCommands";
-import { SteamGame } from "@/types/steam";
+import {
+  steamOpenInApp, steamOpenInStore, shellOpenPath, itemSetFavorite, itemDelete,
+} from "@/services/tauriCommands";
+import { SteamGame, SteamLibItem } from "@/types/steam";
+import EditItemModal from "@/pages/EditItemModal";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import DetailHero from "./detail/DetailHero";
 import PlayStatsCard from "./detail/PlayStatsCard";
 import AboutCard from "./detail/AboutCard";
@@ -21,18 +27,24 @@ import ScreenshotsSection from "./detail/ScreenshotsSection";
 import CloudSavesSection from "./detail/CloudSavesSection";
 
 interface GameDetailTabProps {
-  /** The game to show full details for. */
+  /** The game to show full details for (scan-side data). */
   game: SteamGame;
-  /** The library item id backing this game (enables edits), or null. */
-  itemId: string | null;
+  /** The library item backing this game. */
+  item: SteamLibItem;
+  /** Called after an edit/favourite change so the library list refreshes. */
+  onChanged: () => void;
+  /** Called after the item is deleted (closes the detail and refreshes). */
+  onDeleted: () => void;
 }
 
 /**
  * Full game detail view rendered inside the library main panel.
  * Achievements, screenshots, and cloud saves load lazily on first expand.
  */
-export default function GameDetailTab({ game, itemId }: GameDetailTabProps) {
+export default function GameDetailTab({ game, item, onChanged, onDeleted }: GameDetailTabProps) {
   const [editError, setEditError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [achSummary, setAchSummary] = useState<{ unlocked: number; total: number } | null>(null);
 
   const handleAchSummary = useCallback(
@@ -40,9 +52,35 @@ export default function GameDetailTab({ game, itemId }: GameDetailTabProps) {
     [],
   );
 
+  async function handleFavoriteToggle() {
+    try {
+      await itemSetFavorite(item.id, !item.is_favorite);
+      onChanged();
+    } catch (e) {
+      setEditError(String(e));
+    }
+  }
+
+  async function handleDelete() {
+    setConfirmDelete(false);
+    try {
+      await itemDelete(item.id);
+      onDeleted();
+    } catch (e) {
+      setEditError(String(e));
+    }
+  }
+
   return (
     <div className="sdt-root" key={game.app_id}>
-      <DetailHero game={game} itemId={itemId} achSummary={achSummary} onError={setEditError} />
+      <DetailHero
+        game={game}
+        item={item}
+        achSummary={achSummary}
+        onFavoriteToggle={handleFavoriteToggle}
+        onEdit={() => setEditOpen(true)}
+        onDelete={() => setConfirmDelete(true)}
+      />
 
       <div className="sdt-page">
         {editError && (
@@ -53,7 +91,7 @@ export default function GameDetailTab({ game, itemId }: GameDetailTabProps) {
         )}
 
         <div className="sdt-actions-row">
-          <button className="sdt-action-btn sdt-action-btn--primary" onClick={() => steamOpenInApp(game.app_id).catch(() => {})}>
+          <button className="sdt-action-btn" onClick={() => steamOpenInApp(game.app_id).catch(() => {})}>
             <Monitor size={14} />Open in Steam
           </button>
           <button className="sdt-action-btn" onClick={() => steamOpenInStore(game.app_id).catch(() => {})}>
@@ -70,9 +108,9 @@ export default function GameDetailTab({ game, itemId }: GameDetailTabProps) {
           <div className="sdt-col-left">
             <PlayStatsCard game={game} />
             <AboutCard game={game} />
-            {itemId && <NotesCard itemId={itemId} onError={setEditError} />}
-            {itemId && <PlayStatusCard itemId={itemId} />}
-            {itemId && <TagsCard itemId={itemId} />}
+            <NotesCard itemId={item.id} onError={setEditError} />
+            <PlayStatusCard itemId={item.id} />
+            <TagsCard itemId={item.id} />
           </div>
 
           <div className="sdt-col-right">
@@ -82,6 +120,21 @@ export default function GameDetailTab({ game, itemId }: GameDetailTabProps) {
           </div>
         </div>
       </div>
+
+      {editOpen && (
+        <EditItemModal
+          item={item}
+          onSave={() => { setEditOpen(false); onChanged(); }}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete from library?"
+        message={`"${item.name}" will be removed from YukiG. The game itself stays in your Steam library and will come back on the next sync unless it is gone from Steam.`}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

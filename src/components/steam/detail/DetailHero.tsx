@@ -1,49 +1,37 @@
 /**
- * Hero banner + below-hero strip for the game detail tab:
- * background art, logo overlay, editable name, play/install button,
- * playtime widget, achievement and OS pills.
+ * Hero banner + below-hero strip for the game detail view: background art,
+ * logo overlay, the game name with its icon actions (favourite / edit /
+ * delete), the Steam-style play button, playtime widget, and pills.
+ * Renaming lives in the Edit modal, not inline here.
  * Styles come from the steam feature stylesheet (sdt-*).
  */
 import { useState } from "react";
-import { RefreshCw, Play, Download, Trophy, Check, X, Pencil } from "lucide-react";
-import { steamLaunchGame, steamInstallGame, itemUpdate } from "@/services/tauriCommands";
-import { SteamGame } from "@/types/steam";
+import { Play, Download, Trophy, Heart, Pencil, Trash2 } from "lucide-react";
+import { steamLaunchGame, steamInstallGame } from "@/services/tauriCommands";
+import { SteamGame, SteamLibItem } from "@/types/steam";
 import { steamImageSrc } from "@/utils/pathUtils";
 import { fmtDate, fmtPlaytimeHours } from "@/utils/steamFormatters";
 import OsIcon from "../OsIcon";
 
 interface DetailHeroProps {
+  /** Scan-side game data (art, playtime, OS flags). */
   game: SteamGame;
-  /** DB item id — enables name editing when present. */
-  itemId: string | null;
+  /** The library item backing this game (name, favourite state, id). */
+  item: SteamLibItem;
   /** Achievement summary from the achievements section, if loaded. */
   achSummary: { unlocked: number; total: number } | null;
-  onError: (msg: string) => void;
+  onFavoriteToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
 /**
- * Renders the detail tab's hero area.
+ * Renders the detail view's hero area.
  */
-export default function DetailHero({ game, itemId, achSummary, onError }: DetailHeroProps) {
-  const [editingName, setEditingName] = useState(false);
-  const [nameVal, setNameVal] = useState(game.name);
-  const [savingName, setSavingName] = useState(false);
+export default function DetailHero({ game, item, achSummary, onFavoriteToggle, onEdit, onDelete }: DetailHeroProps) {
   // Fades the hero art in once it has decoded, instead of popping.
   const [heroLoaded, setHeroLoaded] = useState(false);
   const playtimeHours = fmtPlaytimeHours(game.playtime_minutes);
-
-  async function handleSaveName() {
-    if (!itemId || nameVal.trim() === "" || nameVal === game.name) { setEditingName(false); return; }
-    setSavingName(true);
-    try {
-      await itemUpdate(itemId, nameVal.trim());
-      setEditingName(false);
-    } catch (e) {
-      onError(String(e));
-    } finally {
-      setSavingName(false);
-    }
-  }
 
   return (
     <>
@@ -63,30 +51,31 @@ export default function DetailHero({ game, itemId, achSummary, onError }: Detail
           <img
             className="sdt-hero-logo"
             src={steamImageSrc(game.library_logo)}
-            alt={game.name}
+            alt={item.name}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>
       </div>
 
       <div className="sdt-hero-below">
-        {editingName ? (
-          <div className="sdt-name-edit">
-            <input className="sdt-name-input" value={nameVal}
-              onChange={(e) => setNameVal(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") { setEditingName(false); setNameVal(game.name); } }}
-              autoFocus />
-            <button className="sdt-name-save" onClick={handleSaveName} disabled={savingName}>
-              {savingName ? <RefreshCw size={12} className="sp-spin" /> : <Check size={12} />}
+        <div className="sdt-hero-name-row">
+          <h1 className="sdt-hero-name">{item.name}</h1>
+          <div className="sdt-name-actions">
+            <button
+              className={`sdt-icon-action ${item.is_favorite ? "sdt-icon-action--fav-on" : ""}`}
+              onClick={onFavoriteToggle}
+              title={item.is_favorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              <Heart size={14} />
             </button>
-            <button className="sdt-name-cancel" onClick={() => { setEditingName(false); setNameVal(game.name); }}><X size={12} /></button>
+            <button className="sdt-icon-action" onClick={onEdit} title="Edit">
+              <Pencil size={14} />
+            </button>
+            <button className="sdt-icon-action sdt-icon-action--danger" onClick={onDelete} title="Delete from library">
+              <Trash2 size={14} />
+            </button>
           </div>
-        ) : (
-          <div className="sdt-hero-name-row">
-            <h1 className="sdt-hero-name">{nameVal}</h1>
-            {itemId && <button className="sdt-edit-icon-btn" onClick={() => setEditingName(true)} title="Edit name"><Pencil size={13} /></button>}
-          </div>
-        )}
+        </div>
         {game.developer && (
           <div className="sdt-hero-meta">
             <span className="sdt-hero-dev">{game.developer}</span>
@@ -100,7 +89,7 @@ export default function DetailHero({ game, itemId, achSummary, onError }: Detail
               else steamInstallGame(game.app_id).catch(() => {});
             }}
           >
-            {game.is_installed ? <Play size={15} /> : <Download size={15} />}
+            {game.is_installed ? <Play size={16} fill="currentColor" /> : <Download size={16} />}
             {game.is_installed ? "Play" : "Install"}
           </button>
           <div className="sdt-playtime-widget">

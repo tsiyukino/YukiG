@@ -17,6 +17,8 @@ interface GameRowProps {
   eager?: boolean;
   /** Called when the row is clicked. */
   onOpen: (e: React.MouseEvent) => void;
+  /** Called on right-click (opens the game's context menu). */
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 /**
@@ -24,11 +26,12 @@ interface GameRowProps {
  * Falls back to a Gamepad2 icon when no game icon URL is available.
  * Gets a green tint and pulsing dot while running.
  */
-export default function GameRow({ game, isFavorite, isPlaying, eager, onOpen }: GameRowProps) {
+export default function GameRow({ game, isFavorite, isPlaying, eager, onOpen, onContextMenu }: GameRowProps) {
   return (
     <button
       className={`sp-row ${!game.is_installed ? "sp-row--uninstalled" : ""} ${isPlaying ? "sp-row--playing" : ""}`}
       onClick={onOpen}
+      onContextMenu={onContextMenu}
     >
       <div className="sp-row-icon-wrap">
         {game.icon_url ? (

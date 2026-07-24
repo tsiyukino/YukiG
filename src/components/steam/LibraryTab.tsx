@@ -9,11 +9,17 @@
  */
 import { useState, useRef, useEffect } from "react";
 import {
-  RefreshCw, AlertCircle, ArrowLeft, Gamepad2, Heart, Search, LayoutGrid, List,
+  RefreshCw, AlertCircle, ArrowLeft, Download, Gamepad2, Heart, Info,
+  LayoutGrid, List, Monitor, Play, Search, Trash2,
 } from "lucide-react";
-import { itemSetFavorite } from "@/services/tauriCommands";
+import {
+  itemSetFavorite, itemDelete, steamLaunchGame, steamInstallGame, steamOpenInApp,
+} from "@/services/tauriCommands";
 import { SteamLibItem, SteamScanResult } from "@/types/steam";
 import { CollectionGroup } from "@/utils/steamFormatters";
+import { useContextMenu } from "@/components/common/ContextMenuProvider";
+import { MenuContent } from "@/components/common/ContextMenu";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import GameCard from "./GameCard";
 import GameRow from "./GameRow";
 import GameDetailTab from "./GameDetailTab";
@@ -63,8 +69,10 @@ function StateScreen({ icon, title, sub, spin, error }: {
  */
 export default function LibraryTab({ loading, groups, libGames, error, scanResult, onReload, openItemId }: LibraryTabProps) {
   const runningAppId = useSteamRunningApp();
+  const menu = useContextMenu();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [detailGame, setDetailGame] = useState<SteamLibItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SteamLibItem | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const openHandledRef = useRef(false);
@@ -117,6 +125,37 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
     }
   }
 
+  async function handleDelete(game: SteamLibItem) {
+    setDeleteTarget(null);
+    try {
+      await itemDelete(game.id);
+      if (detailGame?.id === game.id) setDetailGame(null);
+      onReload();
+    } catch (_) {
+      // Non-fatal — UI stays unchanged on failure.
+    }
+  }
+
+  /** Right-click menu for a game card/row — launch first, like the Steam client. */
+  function gameMenu(game: SteamLibItem): MenuContent {
+    return [
+      game.is_installed
+        ? { id: "play", label: "Play", icon: Play, onSelect: () => steamLaunchGame(game.app_id).catch(() => {}) }
+        : { id: "install", label: "Install", icon: Download, onSelect: () => steamInstallGame(game.app_id).catch(() => {}) },
+      { id: "steam", label: "Open in Steam", icon: Monitor, onSelect: () => steamOpenInApp(game.app_id).catch(() => {}) },
+      "separator",
+      { id: "detail", label: "View Details", icon: Info, onSelect: () => setDetailGame(game) },
+      {
+        id: "fav",
+        label: game.is_favorite ? "Remove from Favorites" : "Add to Favorites",
+        icon: Heart,
+        onSelect: () => handleToggleFavorite(game),
+      },
+      "separator",
+      { id: "delete", label: "Delete from library", icon: Trash2, danger: true, onSelect: () => setDeleteTarget(game) },
+    ];
+  }
+
   if (loading && libGames.length === 0) {
     return <StateScreen icon={<RefreshCw size={22} />} spin
       title="Loading Steam library…" sub="Reading your games" />;
@@ -161,7 +200,7 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
             game={detailLive}
             scanResult={scanResult}
             onBack={closeDetail}
-            onToggleFavorite={() => handleToggleFavorite(detailLive)}
+            onChanged={onReload}
           />
         ) : (
         <>
@@ -209,6 +248,7 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
                     isPlaying={runningAppId === game.app_id}
                     eager={i < 20}
                     onOpen={() => setDetailGame(game)}
+                    onContextMenu={(e) => menu.open(e, gameMenu(game))}
                   />
                 ))}
               </div>
@@ -222,6 +262,7 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
                     isPlaying={runningAppId === game.app_id}
                     eager={i < 30}
                     onOpen={() => setDetailGame(game)}
+                    onContextMenu={(e) => menu.open(e, gameMenu(game))}
                   />
                 ))}
               </div>
@@ -231,20 +272,28 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
         </>
         )}
       </main>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete from library?"
+        message={deleteTarget ? `"${deleteTarget.name}" will be removed from YukiG. The game itself stays in your Steam library and will come back on the next sync unless it is gone from Steam.` : ""}
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
 
 /**
- * The in-page detail view: a fixed Back/favourite bar floating over the
- * scrolling detail content. The content still renders from the scanned
- * SteamGame (resolved by app id) until the detail layout is unified.
+ * The in-page detail view: a floating Back button over the scrolling detail
+ * content. The content still renders from the scanned SteamGame (resolved by
+ * app id) until the detail layout is unified.
  */
-function DetailPane({ game, scanResult, onBack, onToggleFavorite }: {
+function DetailPane({ game, scanResult, onBack, onChanged }: {
   game: SteamLibItem;
   scanResult: SteamScanResult | null;
   onBack: () => void;
-  onToggleFavorite: () => void;
+  onChanged: () => void;
 }) {
   const scanned = scanResult?.games.find((g) => g.app_id === game.app_id) ?? null;
 
@@ -254,16 +303,14 @@ function DetailPane({ game, scanResult, onBack, onToggleFavorite }: {
         <ArrowLeft size={14} />
         Back
       </button>
-      <button
-        className={`sp-detail-fav ${game.is_favorite ? "sp-detail-fav--on" : ""}`}
-        onClick={onToggleFavorite}
-        title={game.is_favorite ? "Remove from favorites" : "Add to favorites"}
-      >
-        <Heart size={14} />
-      </button>
 
       {scanned ? (
-        <GameDetailTab game={scanned} itemId={game.id} />
+        <GameDetailTab
+          game={scanned}
+          item={game}
+          onChanged={onChanged}
+          onDeleted={() => { onBack(); onChanged(); }}
+        />
       ) : (
         <StateScreen
           icon={<AlertCircle size={22} />}

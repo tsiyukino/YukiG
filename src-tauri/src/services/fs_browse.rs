@@ -31,6 +31,10 @@ const IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 /// affected node is marked `truncated`.
 const MAX_TREE_NODES: usize = 800;
 
+/// Cap on direct children admitted per directory, so one directory with
+/// thousands of files cannot eat the whole node budget by itself.
+const MAX_CHILDREN_PER_DIR: usize = 200;
+
 /// An image file inside a screenshots folder.
 #[derive(Debug, Clone, Serialize)]
 pub struct ImageEntry {
@@ -177,12 +181,17 @@ fn build_node(path: &Path, depth_left: u32, budget: &mut usize) -> Result<TreeNo
         )
     });
 
+    // Claim budget for ALL direct children up front (breadth before depth):
+    // recursing first would let the first subdirectory swallow the whole node
+    // budget and starve its siblings, hiding every mod folder after the first.
+    let admitted = paths.len().min(*budget).min(MAX_CHILDREN_PER_DIR);
+    if admitted < paths.len() {
+        node.truncated = true;
+    }
+    *budget -= admitted;
+    paths.truncate(admitted);
+
     for child in paths {
-        if *budget == 0 {
-            node.truncated = true;
-            break;
-        }
-        *budget -= 1;
         node.children.push(build_node(&child, depth_left - 1, budget)?);
     }
     Ok(node)
@@ -243,6 +252,27 @@ mod tests {
         // Depth 1: the subdirectory itself appears but its children are cut off.
         assert!(tree.children[0].children.is_empty());
         assert!(tree.children[0].truncated, "depth-limited dir is marked truncated");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn dir_tree_first_big_dir_does_not_starve_siblings() {
+        let dir = temp_dir("fair");
+        // First directory holds more files than the whole node budget…
+        fs::create_dir(dir.join("a-huge")).unwrap();
+        for i in 0..(MAX_TREE_NODES + 50) {
+            fs::write(dir.join("a-huge").join(format!("f{i:04}.dat")), b"x").unwrap();
+        }
+        // …the later siblings must still be admitted.
+        fs::create_dir(dir.join("b-mod")).unwrap();
+        fs::create_dir(dir.join("c-mod")).unwrap();
+
+        let tree = dir_tree(&dir, 3).unwrap();
+        let names: Vec<&str> = tree.children.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, vec!["a-huge", "b-mod", "c-mod"], "all top-level dirs visible");
+        let huge = &tree.children[0];
+        assert!(huge.truncated, "the oversized dir is marked truncated");
+        assert!(huge.children.len() <= MAX_CHILDREN_PER_DIR, "per-dir child cap holds");
         let _ = fs::remove_dir_all(&dir);
     }
 

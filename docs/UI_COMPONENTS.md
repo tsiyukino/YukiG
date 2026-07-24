@@ -203,6 +203,9 @@ Steam-style play row: large accent Play button (tracked launch via `strategy_exe
 ### `PathRowsCard` (`src/components/detail/PathRowsCard.tsx`)
 Presentational "Details" card of labelled path rows with caller-composed action buttons. **Props**: `rows: PathRowSpec[]` (`{ key, icon, label, path, action?, sub? }`), `footer?`.
 
+### `LocalFoldersCard` (`src/components/detail/LocalFoldersCard.tsx`)
+Steam-detail "Details" card wrapping `PathRowsCard`: shows the user-set mod / screenshots / saves folders (each with Open Folder), or nothing when none is set. Fed by `useLocalFolders(itemId)`. Local games get the same rows inside `GameDetailColumns`.
+
 ### `ScreenshotsCard` (`src/components/detail/ScreenshotsCard.tsx`)
 Collapsible screenshots grid for any folder: lazy `folder_list_images` on first expand; each image renders through `ScreenshotThumb`, which canvas-downscales the source so full-resolution shots don't stall the webview. Click opens the system viewer. **Props**: `folder: string`.
 

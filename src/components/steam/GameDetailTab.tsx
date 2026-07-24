@@ -16,6 +16,10 @@ import {
 import { SteamGame, SteamLibItem } from "@/types/steam";
 import EditItemModal from "@/pages/EditItemModal";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { useLocalFolders } from "@/hooks/useLocalFolders";
+import LocalFoldersCard from "@/components/detail/LocalFoldersCard";
+import ScreenshotsCard from "@/components/detail/ScreenshotsCard";
+import ModsCard from "@/components/detail/ModsCard";
 import DetailHero from "./detail/DetailHero";
 import PlayStatsCard from "./detail/PlayStatsCard";
 import AboutCard from "./detail/AboutCard";
@@ -46,6 +50,9 @@ export default function GameDetailTab({ game, item, onChanged, onDeleted }: Game
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [achSummary, setAchSummary] = useState<{ unlocked: number; total: number } | null>(null);
+  // User-set local folders (hand-installed mods, local saves) — optional, and
+  // separate from Steam's own screenshot/cloud dirs shown in the right column.
+  const localFolders = useLocalFolders(item.id);
 
   const handleAchSummary = useCallback(
     (summary: { unlocked: number; total: number }) => setAchSummary(summary),
@@ -108,6 +115,7 @@ export default function GameDetailTab({ game, item, onChanged, onDeleted }: Game
           <div className="sdt-col-left">
             <PlayStatsCard game={game} />
             <AboutCard game={game} />
+            {!localFolders.loading && localFolders.hasAny && <LocalFoldersCard folders={localFolders} />}
             <NotesCard itemId={item.id} onError={setEditError} />
             <PlayStatusCard itemId={item.id} />
             <TagsCard itemId={item.id} />
@@ -116,6 +124,8 @@ export default function GameDetailTab({ game, item, onChanged, onDeleted }: Game
           <div className="sdt-col-right">
             <AchievementsSection game={game} onSummary={handleAchSummary} />
             <ScreenshotsSection game={game} />
+            {localFolders.screenshotFolder && <ScreenshotsCard folder={localFolders.screenshotFolder} />}
+            {localFolders.modFolder && <ModsCard folder={localFolders.modFolder} />}
             <CloudSavesSection game={game} />
           </div>
         </div>
@@ -124,7 +134,7 @@ export default function GameDetailTab({ game, item, onChanged, onDeleted }: Game
       {editOpen && (
         <EditItemModal
           item={item}
-          onSave={() => { setEditOpen(false); onChanged(); }}
+          onSave={() => { setEditOpen(false); localFolders.reload(); onChanged(); }}
           onClose={() => setEditOpen(false)}
         />
       )}

@@ -1,16 +1,15 @@
 /**
- * Collapsible mods file-tree preview for a user-set mod folder: loads the
- * tree lazily on first expand and renders it with per-directory toggles,
- * everything collapsed by default.
+ * Collapsible mods file browser for a user-set mod folder. Each directory's
+ * children are fetched only when it is expanded (`folder_children`), so a deep
+ * mod folder is never walked several levels up front — that shallow, on-demand
+ * read is what keeps huge folders (hundreds of mods) responsive. The root is
+ * loaded and shown expanded when the card first opens.
  */
 import { useState } from "react";
 import { ChevronDown, ChevronRight, File, Folder, Package } from "lucide-react";
-import { folderTree, FolderTreeNode } from "@/services/tauriCommands";
+import { folderChildren, FolderTreeNode } from "@/services/tauriCommands";
 import { formatFileSize } from "@/utils/formatFileSize";
 import styles from "./ModsCard.module.css";
-
-/** Levels of children fetched from the backend in one go. */
-const TREE_DEPTH = 6;
 
 interface ModsCardProps {
   /** Absolute path of the mod folder. */
@@ -18,19 +17,19 @@ interface ModsCardProps {
 }
 
 /**
- * Renders the collapsible mods tree.
+ * Renders the collapsible mods browser; the root loads on first card open.
  */
 export default function ModsCard({ folder }: ModsCardProps) {
   const [open, setOpen] = useState(false);
-  const [tree, setTree] = useState<FolderTreeNode | null>(null);
+  const [root, setRoot] = useState<{ entries: FolderTreeNode[]; truncated: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function toggle() {
     const next = !open;
     setOpen(next);
-    if (next && tree === null) {
-      folderTree(folder, TREE_DEPTH)
-        .then(setTree)
+    if (next && root === null) {
+      folderChildren(folder)
+        .then(setRoot)
         .catch((e) => setError(String(e)));
     }
   }
@@ -41,35 +40,53 @@ export default function ModsCard({ folder }: ModsCardProps) {
         {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
         <Package size={13} />
         <span className={styles.title}>Mods</span>
-        {tree !== null && <span className={styles.count}>{tree.children.length}</span>}
+        {root !== null && <span className={styles.count}>{root.entries.length}</span>}
       </button>
 
       {open && (
         <div className={styles.body}>
           {error && <p className={styles.error}>{error}</p>}
-          {tree !== null && tree.children.length === 0 && !error && (
+          {root !== null && root.entries.length === 0 && !error && (
             <p className={styles.empty}>The mod folder is empty.</p>
           )}
-          {tree !== null && tree.children.map((child) => (
-            <TreeRow key={child.path} node={child} depth={0} />
+          {root?.entries.map((node) => (
+            <TreeRow key={node.path} node={node} depth={0} />
           ))}
-          {tree?.truncated && <p className={styles.empty}>Listing truncated — open the folder to see everything.</p>}
+          {root?.truncated && (
+            <p className={styles.empty}>Listing truncated — open the folder to see everything.</p>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-/** One tree row; directories expand on click, collapsed by default. */
+/** One tree row; a directory fetches its children the first time it expands. */
 function TreeRow({ node, depth }: { node: FolderTreeNode; depth: number }) {
   const [open, setOpen] = useState(false);
+  const [children, setChildren] = useState<{ entries: FolderTreeNode[]; truncated: boolean } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggle() {
+    if (!node.is_dir) return;
+    const next = !open;
+    setOpen(next);
+    if (next && children === null) {
+      setLoading(true);
+      folderChildren(node.path)
+        .then(setChildren)
+        .catch((e) => setError(String(e)))
+        .finally(() => setLoading(false));
+    }
+  }
 
   return (
     <>
       <button
         className={styles.treeRow}
         style={{ paddingLeft: 8 + depth * 16 }}
-        onClick={() => node.is_dir && setOpen((v) => !v)}
+        onClick={toggle}
         disabled={!node.is_dir}
       >
         {node.is_dir
@@ -81,11 +98,17 @@ function TreeRow({ node, depth }: { node: FolderTreeNode; depth: number }) {
           <span className={styles.nodeSize}>{formatFileSize(node.size)}</span>
         )}
       </button>
-      {open && node.children.map((child) => (
+      {open && loading && (
+        <span className={styles.loadingRow} style={{ paddingLeft: 8 + (depth + 1) * 16 }}>Loading…</span>
+      )}
+      {open && error && (
+        <span className={styles.error} style={{ paddingLeft: 8 + (depth + 1) * 16 }}>{error}</span>
+      )}
+      {open && children?.entries.map((child) => (
         <TreeRow key={child.path} node={child} depth={depth + 1} />
       ))}
-      {open && node.truncated && (
-        <span className={styles.truncNote} style={{ paddingLeft: 8 + (depth + 1) * 16 }}>…</span>
+      {open && children?.truncated && (
+        <span className={styles.truncNote} style={{ paddingLeft: 8 + (depth + 1) * 16 }}>…more</span>
       )}
     </>
   );

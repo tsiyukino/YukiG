@@ -1,7 +1,7 @@
 /// Tauri command handlers for read-only folder browsing (detail views).
 use std::path::Path;
 
-use crate::services::fs_browse::{self, ImageEntry, TreeNode};
+use crate::services::fs_browse::{self, DirListing, ImageEntry};
 
 /// Lists the image files directly inside a folder, newest first.
 ///
@@ -16,14 +16,16 @@ pub fn folder_list_images(path: String) -> Result<Vec<ImageEntry>, String> {
     fs_browse::list_images(Path::new(&path)).map_err(|e| e.to_string())
 }
 
-/// Reads a folder tree up to `max_depth` levels, capped in size.
+/// Lists one directory's direct children (non-recursive).
 ///
-/// Backs the Mods file-tree preview on the game detail page.
+/// Backs the Mods file-tree preview: the frontend calls this for the root
+/// folder, then again for each directory the user expands, so a deep mod
+/// folder is never walked several levels up front.
 ///
 /// # Errors
 /// Returns an error string if the path is missing, not a directory, or
 /// unreadable.
 #[tauri::command]
-pub fn folder_tree(path: String, max_depth: u32) -> Result<TreeNode, String> {
-    fs_browse::dir_tree(Path::new(&path), max_depth).map_err(|e| e.to_string())
+pub fn folder_children(path: String) -> Result<DirListing, String> {
+    fs_browse::dir_children(Path::new(&path)).map_err(|e| e.to_string())
 }

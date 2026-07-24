@@ -180,12 +180,12 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Owner**: `commands/folder_commands.rs` (logic in `services/fs_browse.rs`)
 - **Note**: Backs the Screenshots preview grid for any user-set screenshots folder — local and Steam games share it.
 
-### `folder_tree`
-- **Parameters**: `path: string`, `max_depth: number`
-- **Returns**: `FolderTreeNode` — `{ name, path, is_dir, size, children, truncated }`; directories sort first, capped at 800 nodes total
+### `folder_children`
+- **Parameters**: `path: string`
+- **Returns**: `FolderListing` — `{ entries: FolderTreeNode[], truncated }` where each node is `{ name, path, is_dir, size }`; directories sort first, capped at 500 entries
 - **Errors**: Path missing, not a directory, or unreadable
 - **Owner**: `commands/folder_commands.rs` (logic in `services/fs_browse.rs`)
-- **Note**: Backs the Mods file-tree preview on the game detail page. `truncated` marks nodes whose children were cut off by the depth limit or node budget.
+- **Note**: Backs the Mods file tree — non-recursive, one directory per call. The frontend fetches the root then each directory as it is expanded, so a deep mod folder is never walked several levels up front (a recursive walk with per-entry `stat` took ~3 s on a 846-item mod folder; this shallow read is ~1 ms). `truncated` marks a directory that had more than 500 entries.
 
 ## Watcher
 

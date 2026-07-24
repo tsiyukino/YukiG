@@ -12,15 +12,19 @@ export interface FolderImage {
   timestamp: number;
 }
 
-/** A node in a folder tree (the Mods preview). */
+/** One entry in a directory listing (the Mods tree, loaded on demand). */
 export interface FolderTreeNode {
   name: string;
   path: string;
   is_dir: boolean;
   /** File size in bytes; 0 for directories. */
   size: number;
-  children: FolderTreeNode[];
-  /** True when children were cut off by the node budget or depth limit. */
+}
+
+/** One directory's direct children plus whether the listing was capped. */
+export interface FolderListing {
+  entries: FolderTreeNode[];
+  /** True when the directory had more entries than the per-directory cap. */
   truncated: boolean;
 }
 
@@ -35,12 +39,12 @@ export async function folderListImages(path: string): Promise<FolderImage[]> {
 }
 
 /**
- * Reads a folder tree up to `maxDepth` levels, capped in size.
- * Backs the Mods file-tree preview on the game detail page.
+ * Lists one directory's direct children (non-recursive).
+ * Backs the Mods file tree: call it for the root, then for each directory the
+ * user expands, so a deep mod folder is never walked several levels up front.
  * @param path - Absolute folder path
- * @param maxDepth - Levels of children to descend
  * @throws {string} If the path is missing, not a directory, or unreadable
  */
-export async function folderTree(path: string, maxDepth: number): Promise<FolderTreeNode> {
-  return invoke("folder_tree", { path, maxDepth });
+export async function folderChildren(path: string): Promise<FolderListing> {
+  return invoke("folder_children", { path });
 }

@@ -204,10 +204,13 @@ Steam-style play row: large accent Play button (tracked launch via `strategy_exe
 Presentational "Details" card of labelled path rows with caller-composed action buttons. **Props**: `rows: PathRowSpec[]` (`{ key, icon, label, path, action?, sub? }`), `footer?`.
 
 ### `ScreenshotsCard` (`src/components/detail/ScreenshotsCard.tsx`)
-Collapsible screenshots grid for any folder: lazy `folder_list_images` on first expand, thumbnails via `convertFileSrc`, click opens the system viewer. **Props**: `folder: string`.
+Collapsible screenshots grid for any folder: lazy `folder_list_images` on first expand; each image renders through `ScreenshotThumb`, which canvas-downscales the source so full-resolution shots don't stall the webview. Click opens the system viewer. **Props**: `folder: string`.
+
+### `ScreenshotThumb` (`src/components/detail/ScreenshotThumb.tsx`)
+One screenshot tile: decodes its source once off-screen, paints a ~320px canvas thumbnail, keeps only that bitmap. `content-visibility: auto` skips off-screen tiles. **Props**: `path, filename, onOpen`.
 
 ### `ModsCard` (`src/components/detail/ModsCard.tsx`)
-Collapsible mods file tree: lazy `folder_tree` on first expand, per-directory toggles, collapsed by default. **Props**: `folder: string`.
+Collapsible mods file browser: each directory's children load on expand via `folder_children` (one shallow read per directory), so deep mod folders stay fast. Root loads on first card open. **Props**: `folder: string`.
 
 ## Play Page
 

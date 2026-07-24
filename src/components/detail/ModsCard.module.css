@@ -87,6 +87,12 @@
   color: var(--color-text-muted);
 }
 
+.loadingRow {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 .error {
   font-size: var(--text-xs);
   color: var(--color-danger);

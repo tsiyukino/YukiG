@@ -26,14 +26,9 @@ pub enum FsBrowseError {
 /// Image file extensions shown in the screenshots grid.
 const IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 
-/// Hard cap on nodes returned by `dir_tree`, so a huge mod folder cannot
-/// freeze the UI. Subtrees are cut off once the budget runs out and the
-/// affected node is marked `truncated`.
-const MAX_TREE_NODES: usize = 800;
-
-/// Cap on direct children admitted per directory, so one directory with
-/// thousands of files cannot eat the whole node budget by itself.
-const MAX_CHILDREN_PER_DIR: usize = 200;
+/// Cap on direct children returned per directory, so one directory with
+/// thousands of entries cannot flood the UI in a single expand.
+const MAX_CHILDREN_PER_DIR: usize = 500;
 
 /// An image file inside a screenshots folder.
 #[derive(Debug, Clone, Serialize)]
@@ -45,7 +40,7 @@ pub struct ImageEntry {
     pub timestamp: u64,
 }
 
-/// A node in a folder tree (the Mods preview).
+/// One entry in a directory listing (the Mods tree, loaded on demand).
 #[derive(Debug, Clone, Serialize)]
 pub struct TreeNode {
     pub name: String,
@@ -53,8 +48,13 @@ pub struct TreeNode {
     pub is_dir: bool,
     /// File size in bytes; 0 for directories.
     pub size: u64,
-    pub children: Vec<TreeNode>,
-    /// True when children were cut off by the node budget or depth limit.
+}
+
+/// One directory's direct children plus whether the listing was capped.
+#[derive(Debug, Clone, Serialize)]
+pub struct DirListing {
+    pub entries: Vec<TreeNode>,
+    /// True when the directory had more than `MAX_CHILDREN_PER_DIR` entries.
     pub truncated: bool,
 }
 
@@ -122,79 +122,54 @@ pub fn list_images(dir: &Path) -> Result<Vec<ImageEntry>, FsBrowseError> {
     Ok(images)
 }
 
-/// Reads the folder tree under `dir`, up to `max_depth` levels of children.
+/// Lists one directory's direct children (files and folders), not recursive.
 ///
-/// Directories sort before files, both case-insensitively by name. The total
-/// node count is capped (`MAX_TREE_NODES`); nodes whose children were cut off
-/// by the budget or the depth limit are marked `truncated`.
+/// This is the unit the Mods tree loads on demand: the frontend fetches a
+/// directory's children only when the user expands it, so a huge mod folder is
+/// never walked several levels deep up front. `file_type()` from the directory
+/// read supplies is-dir without a separate `stat` per entry — the repeated
+/// `stat` calls in a recursive walk were what made large mod folders stall.
+///
+/// Directories sort before files, both case-insensitively by name. At most
+/// `MAX_CHILDREN_PER_DIR` entries are returned; if more exist the last node is
+/// dropped and the caller learns of it via `truncated` on the returned struct.
 ///
 /// # Errors
 /// Returns `FsBrowseError::NotFound` / `NotADirectory` for a bad path, or
-/// `Io` if a directory cannot be read.
-pub fn dir_tree(dir: &Path, max_depth: u32) -> Result<TreeNode, FsBrowseError> {
+/// `Io` if the directory cannot be read.
+pub fn dir_children(dir: &Path) -> Result<DirListing, FsBrowseError> {
     check_dir(dir)?;
-    let mut budget = MAX_TREE_NODES;
-    build_node(dir, max_depth, &mut budget)
-}
-
-/// Builds one tree node, recursing while depth and the node budget allow.
-fn build_node(path: &Path, depth_left: u32, budget: &mut usize) -> Result<TreeNode, FsBrowseError> {
-    let name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| path.display().to_string());
-    let is_dir = path.is_dir();
-    let size = if is_dir {
-        0
-    } else {
-        std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
-    };
-
-    let mut node = TreeNode {
-        name,
-        path: path.display().to_string(),
-        is_dir,
-        size,
-        children: Vec::new(),
-        truncated: false,
-    };
-    if !is_dir {
-        return Ok(node);
-    }
-    if depth_left == 0 {
-        node.truncated = true;
-        return Ok(node);
-    }
-
-    let entries = std::fs::read_dir(path).map_err(|source| FsBrowseError::Io {
-        path: path.display().to_string(),
+    let read = std::fs::read_dir(dir).map_err(|source| FsBrowseError::Io {
+        path: dir.display().to_string(),
         source,
     })?;
-    let mut paths: Vec<std::path::PathBuf> = entries.flatten().map(|e| e.path()).collect();
+
+    let mut nodes: Vec<TreeNode> = Vec::new();
+    for entry in read.flatten() {
+        // file_type() comes from the directory scan and avoids a per-entry stat.
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        // Size is only read for files, and only via the entry's own metadata.
+        let size = if is_dir {
+            0
+        } else {
+            entry.metadata().map(|m| m.len()).unwrap_or(0)
+        };
+        nodes.push(TreeNode {
+            name: entry.file_name().to_string_lossy().to_string(),
+            path: entry.path().display().to_string(),
+            is_dir,
+            size,
+        });
+    }
+
     // Directories first, then case-insensitive by name.
-    paths.sort_by_key(|p| {
-        (
-            !p.is_dir(),
-            p.file_name()
-                .map(|n| n.to_string_lossy().to_lowercase())
-                .unwrap_or_default(),
-        )
+    nodes.sort_by(|a, b| {
+        (!a.is_dir, a.name.to_lowercase()).cmp(&(!b.is_dir, b.name.to_lowercase()))
     });
 
-    // Claim budget for ALL direct children up front (breadth before depth):
-    // recursing first would let the first subdirectory swallow the whole node
-    // budget and starve its siblings, hiding every mod folder after the first.
-    let admitted = paths.len().min(*budget).min(MAX_CHILDREN_PER_DIR);
-    if admitted < paths.len() {
-        node.truncated = true;
-    }
-    *budget -= admitted;
-    paths.truncate(admitted);
-
-    for child in paths {
-        node.children.push(build_node(&child, depth_left - 1, budget)?);
-    }
-    Ok(node)
+    let truncated = nodes.len() > MAX_CHILDREN_PER_DIR;
+    nodes.truncate(MAX_CHILDREN_PER_DIR);
+    Ok(DirListing { entries: nodes, truncated })
 }
 
 #[cfg(test)]
@@ -236,57 +211,55 @@ mod tests {
     }
 
     #[test]
-    fn dir_tree_orders_dirs_first_and_respects_depth() {
+    fn dir_children_orders_dirs_first_and_is_shallow() {
         let dir = temp_dir("tree");
-        fs::write(dir.join("z-file.txt"), b"f").unwrap();
+        fs::write(dir.join("z-file.txt"), b"ff").unwrap();
         fs::create_dir(dir.join("a-mods")).unwrap();
         fs::write(dir.join("a-mods").join("mod.esp"), b"m").unwrap();
-        fs::create_dir(dir.join("a-mods").join("deep")).unwrap();
-        fs::write(dir.join("a-mods").join("deep").join("x.dat"), b"d").unwrap();
 
-        let tree = dir_tree(&dir, 1).unwrap();
-        assert!(tree.is_dir);
-        assert_eq!(tree.children.len(), 2);
-        assert_eq!(tree.children[0].name, "a-mods", "directories sort first");
-        assert_eq!(tree.children[1].name, "z-file.txt");
-        // Depth 1: the subdirectory itself appears but its children are cut off.
-        assert!(tree.children[0].children.is_empty());
-        assert!(tree.children[0].truncated, "depth-limited dir is marked truncated");
+        let listing = dir_children(&dir).unwrap();
+        assert!(!listing.truncated);
+        let names: Vec<&str> = listing.entries.iter().map(|n| n.name.as_str()).collect();
+        assert_eq!(names, vec!["a-mods", "z-file.txt"], "directories sort first, then by name");
+        assert!(listing.entries[0].is_dir);
+        assert_eq!(listing.entries[1].size, 2, "file size is reported");
         let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn dir_tree_first_big_dir_does_not_starve_siblings() {
-        let dir = temp_dir("fair");
-        // First directory holds more files than the whole node budget…
-        fs::create_dir(dir.join("a-huge")).unwrap();
-        for i in 0..(MAX_TREE_NODES + 50) {
-            fs::write(dir.join("a-huge").join(format!("f{i:04}.dat")), b"x").unwrap();
-        }
-        // …the later siblings must still be admitted.
-        fs::create_dir(dir.join("b-mod")).unwrap();
-        fs::create_dir(dir.join("c-mod")).unwrap();
-
-        let tree = dir_tree(&dir, 3).unwrap();
-        let names: Vec<&str> = tree.children.iter().map(|c| c.name.as_str()).collect();
-        assert_eq!(names, vec!["a-huge", "b-mod", "c-mod"], "all top-level dirs visible");
-        let huge = &tree.children[0];
-        assert!(huge.truncated, "the oversized dir is marked truncated");
-        assert!(huge.children.len() <= MAX_CHILDREN_PER_DIR, "per-dir child cap holds");
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn dir_tree_deeper_depth_descends() {
+    fn dir_children_reads_one_level_only() {
+        // A nested tree: dir_children must return only the top level, never
+        // descend — that shallow read is what keeps huge mod folders fast.
         let dir = temp_dir("tree2");
         fs::create_dir(dir.join("mods")).unwrap();
         fs::write(dir.join("mods").join("a.esp"), b"m").unwrap();
 
-        let tree = dir_tree(&dir, 3).unwrap();
-        let mods = &tree.children[0];
-        assert_eq!(mods.children.len(), 1);
-        assert_eq!(mods.children[0].name, "a.esp");
-        assert!(!mods.truncated);
+        let listing = dir_children(&dir).unwrap();
+        assert_eq!(listing.entries.len(), 1);
+        assert_eq!(listing.entries[0].name, "mods");
+        assert!(listing.entries[0].is_dir);
+        // The child's own children are fetched by a separate call, on expand.
+        let sub = dir_children(std::path::Path::new(&listing.entries[0].path)).unwrap();
+        assert_eq!(sub.entries.len(), 1);
+        assert_eq!(sub.entries[0].name, "a.esp");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn dir_children_caps_large_directories() {
+        let dir = temp_dir("big");
+        for i in 0..(MAX_CHILDREN_PER_DIR + 25) {
+            fs::write(dir.join(format!("f{i:04}.dat")), b"x").unwrap();
+        }
+        let listing = dir_children(&dir).unwrap();
+        assert_eq!(listing.entries.len(), MAX_CHILDREN_PER_DIR);
+        assert!(listing.truncated, "oversized directory reports truncation");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn dir_children_rejects_missing_path() {
+        let missing = std::env::temp_dir().join("yukig-fsbrowse-no-such-dir");
+        assert!(matches!(dir_children(&missing), Err(FsBrowseError::NotFound(_))));
     }
 }

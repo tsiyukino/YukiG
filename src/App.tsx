@@ -54,6 +54,9 @@ export default function App() {
   );
 }
 
+/** Routes that render edge-to-edge and manage their own padding/scrolling. */
+const FULL_BLEED_ROUTES = ["/steam"];
+
 /** Wraps Routes so a fade+slide animation plays on every route change. */
 function AnimatedRoutes() {
   const location = useLocation();
@@ -69,8 +72,10 @@ function AnimatedRoutes() {
     el.classList.add("page-enter");
   }, [key]);
 
+  const fullBleed = FULL_BLEED_ROUTES.includes(location.pathname);
+
   return (
-    <div ref={ref} className="page-padded">
+    <div ref={ref} className={fullBleed ? "page-full" : "page-padded"}>
       <Routes location={location}>
         <Route path="/" element={<HomePage />} />
         <Route element={<GamesLayout />}>

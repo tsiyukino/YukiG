@@ -99,6 +99,16 @@ select {
   padding: var(--page-pad-top) var(--page-pad-x) var(--space-10);
 }
 
+/* Full-bleed variant for pages that bring their own chrome (e.g. the Steam
+   page): no outer padding, and the page manages its own scrolling. */
+.page-full {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* Respect the OS motion preference: collapse animations to near-instant */
 @media (prefers-reduced-motion: reduce) {
   *,

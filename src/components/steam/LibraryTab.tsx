@@ -1,9 +1,11 @@
 /**
  * Library tab for the Steam hub page.
  *
- * Shows a collapsible sidebar of Steam collections and a main panel
- * displaying games in grid or list view. A slide-in detail drawer appears
- * when a game is selected.
+ * A Steam-client-style sidebar (global search on top, collections as
+ * expandable groups of icon+name game rows) next to a main panel showing the
+ * selected collection's games in grid or list view. While the sidebar search
+ * is active the main panel shows matches from the whole library. A slide-in
+ * detail drawer appears when a game is selected.
  */
 import { useState, useRef, useEffect } from "react";
 import {
@@ -70,7 +72,6 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const openHandledRef = useRef(false);
 
   // Auto-select first group once loaded
@@ -137,10 +138,15 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
       title="No games found" sub="Sync your Steam library to see your games here." />;
   }
 
+  // Sidebar search is global: while active, the main panel shows matches from
+  // the whole library instead of the selected collection.
+  const searching = search.trim().length > 0;
+  const query = search.trim().toLowerCase();
   const currentGroup = groups.find((g) => g.name === selectedGroup) ?? null;
-  const filteredGames = currentGroup
-    ? currentGroup.games.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
-    : [];
+  const shownGames = searching
+    ? libGames.filter((g) => g.name.toLowerCase().includes(query))
+    : currentGroup?.games ?? [];
+  const panelTitle = searching ? "Search Results" : currentGroup?.name ?? "";
 
   const hasDrawer = detail !== null;
 
@@ -149,9 +155,11 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
       <LibrarySidebar
         groups={groups}
         selectedGroup={selectedGroup}
-        onSelect={(name) => { setSelectedGroup(name); setDetail(null); setSearch(""); }}
-        collapsed={sidebarCollapsed}
-        onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+        onSelectGroup={(name) => { setSelectedGroup(name); setDetail(null); setSearch(""); }}
+        onSelectGame={(game) => openDrawer(game)}
+        search={search}
+        onSearchChange={setSearch}
+        runningAppId={runningAppId}
         totalInstalled={libGames.filter((g) => g.is_installed).length}
         totalGames={libGames.length}
       />
@@ -168,30 +176,16 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
           </div>
         )}
 
-        {currentGroup && (
+        {(currentGroup || searching) && (
           <>
             <div className="sp-main-toolbar">
               <div className="sp-main-toolbar-left">
-                <h2 className="sp-main-title">{currentGroup.name}</h2>
+                <h2 className="sp-main-title">{panelTitle}</h2>
                 <span className="sp-main-subtitle">
-                  {filteredGames.length} {filteredGames.length === 1 ? "game" : "games"}
+                  {shownGames.length} {shownGames.length === 1 ? "game" : "games"}
                 </span>
               </div>
               <div className="sp-main-toolbar-right">
-                <div className="sp-search-wrap">
-                  <Search size={13} className="sp-search-icon" />
-                  <input
-                    className="sp-search"
-                    placeholder="Search…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  {search && (
-                    <button className="sp-search-clear" onClick={() => setSearch("")}>
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
                 <div className="sp-view-toggle">
                   <button
                     className={`sp-view-btn ${viewMode === "grid" ? "sp-view-btn--active" : ""}`}
@@ -211,14 +205,14 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
               </div>
             </div>
 
-            {filteredGames.length === 0 ? (
+            {shownGames.length === 0 ? (
               <div className="sp-empty">
                 <Search size={20} />
                 <p>No games match "{search}"</p>
               </div>
             ) : viewMode === "grid" ? (
               <div className={`sp-game-grid ${hasDrawer ? "sp-game-grid--narrow" : ""}`}>
-                {filteredGames.map((game, i) => (
+                {shownGames.map((game, i) => (
                   <GameCard
                     key={game.app_id}
                     game={game}
@@ -232,7 +226,7 @@ export default function LibraryTab({ loading, groups, libGames, error, scanResul
               </div>
             ) : (
               <div className="sp-game-list">
-                {filteredGames.map((game, i) => (
+                {shownGames.map((game, i) => (
                   <GameRow
                     key={game.app_id}
                     game={game}

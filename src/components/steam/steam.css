@@ -868,7 +868,7 @@
   flex-wrap: wrap;
   margin-top: var(--space-1);
 }
-/* Steam-client-shaped play button (their proportions, our accent colours).
+/* Steam-client-shaped play button, flat (no shadows or gloss).
    Colours derive from the accent token so a custom accent follows through. */
 .sdt-play-btn {
   display: inline-flex;
@@ -878,35 +878,20 @@
   min-height: 42px;
   padding: 0 34px;
   border-radius: 4px;
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--color-accent) 75%, #ffffff) 0%,
-    var(--color-accent) 55%,
-    var(--color-accent-hover) 100%
-  );
-  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: var(--color-accent);
+  border: none;
   color: #fff;
   cursor: pointer;
   font-size: 14.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 40%, transparent), inset 0 1px 0 rgba(255,255,255,.15);
-  transition: background .15s, box-shadow .18s, transform .12s, border-color .15s;
+  transition: background var(--transition-fast);
 }
 .sdt-play-btn:hover {
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--color-accent) 55%, #ffffff) 0%,
-    color-mix(in srgb, var(--color-accent) 80%, #ffffff) 50%,
-    var(--color-accent) 100%
-  );
-  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent), 0 4px 14px color-mix(in srgb, var(--color-accent) 50%, transparent), inset 0 1px 0 rgba(255,255,255,.2);
-  transform: translateY(-1px);
+  background: var(--color-accent-hover);
 }
 .sdt-play-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.1);
+  background: color-mix(in srgb, var(--color-accent-hover) 85%, #000000);
 }
 .sdt-install-btn {
   display: inline-flex;

@@ -28,6 +28,8 @@ export default function DetailHero({ game, itemId, achSummary, onError }: Detail
   const [editingName, setEditingName] = useState(false);
   const [nameVal, setNameVal] = useState(game.name);
   const [savingName, setSavingName] = useState(false);
+  // Fades the hero art in once it has decoded, instead of popping.
+  const [heroLoaded, setHeroLoaded] = useState(false);
   const playtimeHours = fmtPlaytimeHours(game.playtime_minutes);
 
   async function handleSaveName() {
@@ -47,9 +49,10 @@ export default function DetailHero({ game, itemId, achSummary, onError }: Detail
     <>
       <div className="sdt-hero">
         <img
-          className="sdt-hero-img"
+          className={`sdt-hero-img ${heroLoaded ? "sdt-hero-img--loaded" : ""}`}
           src={steamImageSrc(game.library_hero || game.header_image)}
           alt=""
+          onLoad={() => setHeroLoaded(true)}
           onError={(e) => {
             const img = e.target as HTMLImageElement;
             if (game.library_hero && img.src === steamImageSrc(game.library_hero)) img.src = steamImageSrc(game.header_image);

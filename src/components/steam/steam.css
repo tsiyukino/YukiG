@@ -773,17 +773,24 @@
   display: flex;
   flex-direction: column;
 }
+/* Height is reserved up front so the layout never jumps while the hero art
+   loads; until then the strip shows as a dark band and the image fades in. */
 .sdt-hero {
   position: relative;
+  height: 260px;
   background: #0a0a0a;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .sdt-hero-img {
   width: 100%;
-  max-height: 260px;
+  height: 100%;
   object-fit: cover;
   display: block;
+  opacity: 0;
+  transition: opacity 220ms ease-out;
 }
+.sdt-hero-img--loaded { opacity: 1; }
 .sdt-hero-overlay {
   position: absolute;
   inset: 0;

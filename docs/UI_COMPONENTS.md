@@ -194,6 +194,11 @@ Read-only play status grid (story / online / snooze) for game items.
 ### `GameEditFields` (`src/components/detail/GameEditFields.tsx`)
 Editable game fields for `EditItemModal`: story/online status selects and the three game-type flag checkboxes.
 
+### `GamePathsStep` (`src/components/detail/GamePathsStep.tsx`)
+Edit-modal Paths step: `SmartSuggestPicker`s for executable / mod / screenshots folders (from the scan) and saves (browse-only), plus `ExtraExesEditor`. Shown for local and Steam games. **Props**: `basePath` + each path value/onChange pair + `extraExes`/`onExtraExesChange`.
+
+`EditItemModal` is a wizard: General step always; games add Game (status/flags) and Paths steps with a `StepBar`. Field state and save live in `useEditItemFlow`.
+
 ### `GameDetailColumns` (`src/components/detail/GameDetailColumns.tsx`)
 Unified two-column body for a local game's detail page: play row on top, left column = Details path rows + the page's sections (passed as children), right column = Screenshots/Mods previews. Owns the `useStrategy` metadata fetch.
 

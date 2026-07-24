@@ -1,32 +1,24 @@
 /**
- * Modal for editing an existing item's name, description, strategy type,
- * and — for game items — play status and game type flags.
+ * Multi-step modal for editing an item.
  *
- * @param item - The item being edited
- * @param onSave - Called with the updated item after a successful save
- * @param onClose - Called when the modal is dismissed
+ * Step 1 (General): name, description, type — always shown.
+ * Step 2 (Game): play status and game-type flags — games only.
+ * Step 3 (Paths): executable, mod / screenshots / saves folders, extra exes —
+ *   games only; applies to both local and Steam games.
+ *
+ * Non-game items have only the General step and save directly. Field state and
+ * the save routine live in useEditItemFlow.
  */
-import { useState, FormEvent, useEffect } from "react";
-import { X } from "lucide-react";
-import {
-  itemUpdate,
-  strategyList,
-  StrategyEntry,
-  gameStatusGet,
-  gameStatusSet,
-  strategyGetMetadata,
-  strategyUpsertMetadata,
-  GameStatus,
-  StoryStatus,
-  OnlineStatus,
-} from "@/services/tauriCommands";
+import { useState, useEffect } from "react";
+import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { strategyList, StrategyEntry } from "@/services/tauriCommands";
 import { Item } from "@/types/item";
 import Modal from "@/components/common/Modal";
 import GroupedStrategySelect from "@/components/common/GroupedStrategySelect";
 import GameEditFields from "@/components/detail/GameEditFields";
-import ExtraExesEditor from "@/components/detail/ExtraExesEditor";
-import { ExtraExe, parseExtraExes, serializeExtraExes } from "@/utils/extraExes";
-import { useGameSuggestions } from "@/hooks/useGameSuggestions";
+import GamePathsStep from "@/components/detail/GamePathsStep";
+import StepBar, { StepInfo } from "@/components/additem/StepBar";
+import { useEditItemFlow } from "@/hooks/useEditItemFlow";
 import form from "@/styles/form.module.css";
 import styles from "./EditItemModal.module.css";
 
@@ -36,87 +28,28 @@ interface EditItemModalProps {
   onClose: () => void;
 }
 
-const IS_GAME = (s: string) => s === "game" || s === "steam_game";
-
-/** Modal overlay for editing an item's details. */
+/** Modal overlay for editing an item's details as a short wizard. */
 export default function EditItemModal({ item, onSave, onClose }: EditItemModalProps) {
-  const [name, setName] = useState(item.name);
-  const [description, setDescription] = useState(item.description);
-  const [strategyType, setStrategyType] = useState(item.strategy_type);
+  const flow = useEditItemFlow(item);
   const [strategies, setStrategies] = useState<StrategyEntry[]>([]);
-
-  // Game status fields — only loaded/shown for game strategy types.
-  const [storyStatus, setStoryStatus] = useState<StoryStatus>("unplayed");
-  const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>("inactive");
-  const [snoozeUntil, setSnoozeUntil] = useState<string | null>(null);
-  // Game type flags stored in strategy_metadata.
-  const [hasStory, setHasStory] = useState(false);
-  const [hasPvp, setHasPvp] = useState(false);
-  const [isLiveService, setIsLiveService] = useState(false);
-  // Extra executables (server, config tool, …) stored as JSON in strategy_metadata.
-  const [extraExes, setExtraExes] = useState<ExtraExe[]>([]);
-  // Scanned exe suggestions from the game folder, same picker as the add flow.
-  const suggest = useGameSuggestions(IS_GAME(item.strategy_type) ? item.folder_path : null);
-
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
     strategyList().then(setStrategies).catch(() => {});
+  }, []);
 
-    if (IS_GAME(item.strategy_type)) {
-      gameStatusGet(item.id)
-        .then((gs: GameStatus) => {
-          setStoryStatus(gs.story_status as StoryStatus);
-          setOnlineStatus(gs.online_status as OnlineStatus);
-          setSnoozeUntil(gs.snooze_until ?? null);
-        })
-        .catch(() => {});
-      // Initialize the game-type checkboxes from stored metadata — saving
-      // writes all three flags, so starting from false would wipe them.
-      strategyGetMetadata(item.id)
-        .then((meta) => {
-          setHasStory(meta.has_story === "true");
-          setHasPvp(meta.has_pvp === "true");
-          setIsLiveService(meta.is_live_service === "true");
-          setExtraExes(parseExtraExes(meta.extra_exes));
-        })
-        .catch(() => {});
-    }
-  }, [item.id, item.strategy_type]);
+  const steps: StepInfo[] = flow.isGame
+    ? [{ key: "general", label: "General" }, { key: "game", label: "Game" }, { key: "paths", label: "Paths" }]
+    : [{ key: "general", label: "General" }];
+  const isLast = step === steps.length - 1;
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const updated = await itemUpdate(
-        item.id,
-        name.trim() !== item.name ? name.trim() : undefined,
-        description.trim() !== item.description ? description.trim() : undefined,
-        strategyType !== item.strategy_type ? strategyType : undefined,
-      );
-
-      if (IS_GAME(item.strategy_type)) {
-        await gameStatusSet(item.id, storyStatus, onlineStatus, snoozeUntil);
-        await strategyUpsertMetadata(item.id, {
-          has_story: hasStory ? "true" : "false",
-          has_pvp: hasPvp ? "true" : "false",
-          is_live_service: isLiveService ? "true" : "false",
-          extra_exes: serializeExtraExes(extraExes),
-        });
-      }
-
-      onSave(updated);
-    } catch (err) {
-      setError(String(err));
-      setSubmitting(false);
-    }
+  async function handleSave() {
+    const updated = await flow.save();
+    if (updated) onSave(updated);
   }
 
   return (
-    <Modal width={460} onClose={onClose}>
+    <Modal width={480} onClose={onClose}>
       <div className={styles.header}>
         <div>
           <span className={styles.title}>Edit Item</span>
@@ -125,79 +58,93 @@ export default function EditItemModal({ item, onSave, onClose }: EditItemModalPr
         <button className={styles.close} onClick={onClose}><X size={15} /></button>
       </div>
 
-      <form onSubmit={handleSubmit} className={form.form}>
-        <label className={form.label}>
-          Display name
-          <input
-            className={form.input}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            autoFocus
-          />
-        </label>
-        <label className={form.label}>
-          Description
-          <input
-            className={form.input}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Optional description"
-          />
-        </label>
-        <label className={form.label}>
-          Type
-          <GroupedStrategySelect
-            className={form.input}
-            value={strategyType}
-            onChange={(e) => setStrategyType(e.target.value)}
-            strategies={strategies}
-          />
-        </label>
-        <div className={form.label}>
-          Folder Path
-          <div className={styles.path}>{item.folder_path}</div>
-        </div>
+      {steps.length > 1 && <StepBar steps={steps} current={step} />}
 
-        {IS_GAME(item.strategy_type) && (
+      <div className={form.form}>
+        {steps[step].key === "general" && (
           <>
-            <GameEditFields
-              storyStatus={storyStatus}
-              onStoryStatusChange={setStoryStatus}
-              onlineStatus={onlineStatus}
-              onOnlineStatusChange={setOnlineStatus}
-              hasStory={hasStory}
-              onHasStoryChange={setHasStory}
-              hasPvp={hasPvp}
-              onHasPvpChange={setHasPvp}
-              isLiveService={isLiveService}
-              onIsLiveServiceChange={setIsLiveService}
-            />
-
-            <div className={styles.sectionLabel}>Extra Executables</div>
-            <ExtraExesEditor
-              value={extraExes}
-              onChange={setExtraExes}
-              suggestions={suggest.suggestions?.executables ?? []}
-              basePath={item.folder_path}
-              onLoadMore={suggest.loadMore}
-              loadingMore={suggest.loadingMore}
-              noMore={suggest.maxDepthReached}
-            />
+            <label className={form.label}>
+              Display name
+              <input
+                className={form.input}
+                value={flow.name}
+                onChange={(e) => flow.setName(e.target.value)}
+                required
+                autoFocus
+              />
+            </label>
+            <label className={form.label}>
+              Description
+              <input
+                className={form.input}
+                value={flow.description}
+                onChange={(e) => flow.setDescription(e.target.value)}
+                placeholder="Optional description"
+              />
+            </label>
+            <label className={form.label}>
+              Type
+              <GroupedStrategySelect
+                className={form.input}
+                value={flow.strategyType}
+                onChange={(e) => flow.setStrategyType(e.target.value)}
+                strategies={strategies}
+              />
+            </label>
+            <div className={form.label}>
+              Folder Path
+              <div className={styles.path}>{item.folder_path}</div>
+            </div>
           </>
         )}
 
-        {error && <div className={styles.errorBox}>{error}</div>}
+        {steps[step].key === "game" && (
+          <GameEditFields
+            storyStatus={flow.storyStatus}
+            onStoryStatusChange={flow.setStoryStatus}
+            onlineStatus={flow.onlineStatus}
+            onOnlineStatusChange={flow.setOnlineStatus}
+            hasStory={flow.hasStory}
+            onHasStoryChange={flow.setHasStory}
+            hasPvp={flow.hasPvp}
+            onHasPvpChange={flow.setHasPvp}
+            isLiveService={flow.isLiveService}
+            onIsLiveServiceChange={flow.setIsLiveService}
+          />
+        )}
+
+        {steps[step].key === "paths" && (
+          <GamePathsStep
+            basePath={item.folder_path}
+            exePath={flow.exePath} onExeChange={flow.setExePath}
+            modFolder={flow.modFolder} onModChange={flow.setModFolder}
+            screenshotFolder={flow.screenshotFolder} onScreenshotChange={flow.setScreenshotFolder}
+            saveFolder={flow.saveFolder} onSaveChange={flow.setSaveFolder}
+            extraExes={flow.extraExes} onExtraExesChange={flow.setExtraExes}
+          />
+        )}
+
+        {flow.error && <div className={styles.errorBox}>{flow.error}</div>}
 
         <div className={styles.footer}>
-          <button type="button" className={`${form.btn} ${form.btnCancel}`} onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
-          <button type="submit" className={`${form.btn} ${form.btnPrimary}`} disabled={submitting || !name.trim()}>
-            {submitting ? "Saving…" : "Save Changes"}
-          </button>
+          {step > 0
+            ? <button type="button" className={`${form.btn} ${form.btnGhost}`} onClick={() => setStep(step - 1)} disabled={flow.submitting}>
+                <ChevronLeft size={13} />Back
+              </button>
+            : <button type="button" className={`${form.btn} ${form.btnCancel}`} onClick={onClose} disabled={flow.submitting}>
+                Cancel
+              </button>
+          }
+          {isLast
+            ? <button type="button" className={`${form.btn} ${form.btnPrimary}`} onClick={handleSave} disabled={flow.submitting || !flow.name.trim()}>
+                <Check size={13} /> {flow.submitting ? "Saving…" : "Save Changes"}
+              </button>
+            : <button type="button" className={`${form.btn} ${form.btnPrimary}`} onClick={() => setStep(step + 1)} disabled={!flow.name.trim()}>
+                Next <ChevronRight size={13} />
+              </button>
+          }
         </div>
-      </form>
+      </div>
     </Modal>
   );
 }

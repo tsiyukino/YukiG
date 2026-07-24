@@ -194,6 +194,21 @@ Read-only play status grid (story / online / snooze) for game items.
 ### `GameEditFields` (`src/components/detail/GameEditFields.tsx`)
 Editable game fields for `EditItemModal`: story/online status selects and the three game-type flag checkboxes.
 
+### `GameDetailColumns` (`src/components/detail/GameDetailColumns.tsx`)
+Unified two-column body for a local game's detail page: play row on top, left column = Details path rows + the page's sections (passed as children), right column = Screenshots/Mods previews. Owns the `useStrategy` metadata fetch.
+
+### `PlayActionRow` (`src/components/detail/PlayActionRow.tsx`)
+Steam-style play row: large accent Play button (tracked launch via `strategy_execute_launch_tracked`, refresh-not-rescan after) + playtime widget. **Props**: `itemId, exePath, totalSeconds, lastLaunched, onSessionEnd, onError`.
+
+### `PathRowsCard` (`src/components/detail/PathRowsCard.tsx`)
+Presentational "Details" card of labelled path rows with caller-composed action buttons. **Props**: `rows: PathRowSpec[]` (`{ key, icon, label, path, action?, sub? }`), `footer?`.
+
+### `ScreenshotsCard` (`src/components/detail/ScreenshotsCard.tsx`)
+Collapsible screenshots grid for any folder: lazy `folder_list_images` on first expand, thumbnails via `convertFileSrc`, click opens the system viewer. **Props**: `folder: string`.
+
+### `ModsCard` (`src/components/detail/ModsCard.tsx`)
+Collapsible mods file tree: lazy `folder_tree` on first expand, per-directory toggles, collapsed by default. **Props**: `folder: string`.
+
 ## Play Page
 
 ### `PlayFilters` (`src/components/play/PlayFilters.tsx`)
@@ -298,8 +313,7 @@ Inline file preview component. Fetches preview data from the backend and renders
 
 ## Strategy Components
 
-### `GameItemView` (`src/components/strategies/GameItemView.tsx`)
-Renders exe path, launch button, and mod folder for game items. Shows strategy metadata fields and allows rescan.
+Local game items no longer have a strategy view — `GameDetailColumns` (detail domain) renders their unified layout.
 
 ### `DocumentItemView` (`src/components/strategies/_archive/DocumentItemView.tsx`) — archived
 Browsable file tree for document collection items. Moved to `_archive/` with the other non-game strategies; not compiled into the active app.

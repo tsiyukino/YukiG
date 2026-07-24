@@ -868,7 +868,8 @@
   flex-wrap: wrap;
   margin-top: var(--space-1);
 }
-/* Steam-client-shaped play button (their proportions, our accent colours) */
+/* Steam-client-shaped play button (their proportions, our accent colours).
+   Colours derive from the accent token so a custom accent follows through. */
 .sdt-play-btn {
   display: inline-flex;
   align-items: center;
@@ -877,25 +878,35 @@
   min-height: 42px;
   padding: 0 34px;
   border-radius: 4px;
-  background: linear-gradient(160deg, #818cf8 0%, #6366f1 55%, #4f46e5 100%);
-  border: 1px solid rgba(129,140,248,.35);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-accent) 75%, #ffffff) 0%,
+    var(--color-accent) 55%,
+    var(--color-accent-hover) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
   color: #fff;
   cursor: pointer;
   font-size: 14.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  box-shadow: 0 2px 8px rgba(99,102,241,.4), inset 0 1px 0 rgba(255,255,255,.15);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 40%, transparent), inset 0 1px 0 rgba(255,255,255,.15);
   transition: background .15s, box-shadow .18s, transform .12s, border-color .15s;
 }
 .sdt-play-btn:hover {
-  background: linear-gradient(160deg, #a5b4fc 0%, #818cf8 50%, #6366f1 100%);
-  border-color: rgba(165,180,252,.45);
-  box-shadow: 0 0 0 3px rgba(99,102,241,.2), 0 4px 14px rgba(99,102,241,.5), inset 0 1px 0 rgba(255,255,255,.2);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-accent) 55%, #ffffff) 0%,
+    color-mix(in srgb, var(--color-accent) 80%, #ffffff) 50%,
+    var(--color-accent) 100%
+  );
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent), 0 4px 14px color-mix(in srgb, var(--color-accent) 50%, transparent), inset 0 1px 0 rgba(255,255,255,.2);
   transform: translateY(-1px);
 }
 .sdt-play-btn:active {
   transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(99,102,241,.35), inset 0 1px 0 rgba(255,255,255,.1);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.1);
 }
 .sdt-install-btn {
   display: inline-flex;

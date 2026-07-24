@@ -1,8 +1,9 @@
 /**
  * Item detail view — shows metadata and strategy-specific info for a single item.
  *
- * Data and mutations live in useItemDetail; this component renders the
- * sections and delegates to the strategy view based on item.strategy_type.
+ * Data and mutations live in useItemDetail. Local games render the unified
+ * two-column layout (play row, Details paths, Screenshots/Mods previews);
+ * other strategy types keep the stacked layout with their strategy view.
  */
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -14,24 +15,23 @@ import { Item } from "@/types/item";
 import { ItemDetailSkeleton } from "@/components/common/Skeleton";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TagPicker from "@/components/common/TagPicker";
-import GameItemView from "@/components/strategies/GameItemView";
 import SteamGameItemView from "@/components/strategies/SteamGameItemView";
 import DetailTopbar from "@/components/detail/DetailTopbar";
 import ItemHeader from "@/components/detail/ItemHeader";
 import MetaSection, { MetaEntry } from "@/components/detail/MetaSection";
 import GameStatusSection from "@/components/detail/GameStatusSection";
+import GameDetailColumns from "@/components/detail/GameDetailColumns";
 import EditItemModal from "@/pages/EditItemModal";
 import { formatDate } from "@/utils/formatDate";
 import styles from "./ItemDetailPage.module.css";
 
 /**
  * Dispatches to the correct strategy view component based on strategy_type.
+ * Local games are handled by GameDetailColumns instead.
  *
  * @param item - The loaded item record
  */
 function StrategyView({ item }: { item: Item }) {
-  if (item.strategy_type === "game")
-    return <GameItemView itemId={item.id} folderPath={item.folder_path} />;
   if (item.strategy_type === "steam_game")
     return <SteamGameItemView itemId={item.id} folderPath={item.folder_path} />;
   return null;
@@ -64,12 +64,53 @@ export default function ItemDetailPage() {
     );
   }
 
+  const isLocalGame = item.strategy_type === "game";
+
   const metaEntries: MetaEntry[] = [
     { label: "Folder Path", value: item.folder_path, mono: true },
     ...(item.description ? [{ label: "Description", value: item.description }] : []),
     { label: "Added", value: formatDate(item.created_at) },
     { label: "Updated", value: formatDate(item.updated_at) },
   ];
+
+  // Sections shared by both layouts. In the unified game layout they flow
+  // into the left column under the Details card.
+  const sections = (
+    <>
+      <MetaSection entries={metaEntries} />
+
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}><span>Tags</span></div>
+        <TagPicker
+          itemTags={itemTagsHook.tags}
+          allTags={allTags}
+          onAssign={itemTagsHook.assign}
+          onRemove={itemTagsHook.remove}
+          onCreateAndAssign={async (name, color) => {
+            const tag = await createTag(name, color);
+            await itemTagsHook.assign(tag.id);
+          }}
+        />
+      </div>
+
+      {detail.gameStatus && <GameStatusSection gameStatus={detail.gameStatus} />}
+
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <span>Notes</span>
+          {detail.notesSaving && <span className={styles.saving}>Saving…</span>}
+        </div>
+        <textarea
+          className={styles.notesTextarea}
+          value={detail.notes}
+          placeholder="Add notes…"
+          onChange={(e) => detail.setNotes(e.target.value)}
+          onBlur={(e) => detail.saveNotes(e.target.value)}
+          rows={4}
+        />
+      </div>
+    </>
+  );
 
   return (
     <div className={styles.page}>
@@ -91,43 +132,19 @@ export default function ItemDetailPage() {
         onPickThumbnail={detail.pickThumbnail}
       />
 
-      <MetaSection entries={metaEntries} />
-
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}><span>Tags</span></div>
-        <TagPicker
-          itemTags={itemTagsHook.tags}
-          allTags={allTags}
-          onAssign={itemTagsHook.assign}
-          onRemove={itemTagsHook.remove}
-          onCreateAndAssign={async (name, color) => {
-            const tag = await createTag(name, color);
-            await itemTagsHook.assign(tag.id);
-          }}
-        />
-      </div>
-
-      {detail.gameStatus && <GameStatusSection gameStatus={detail.gameStatus} />}
-
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}><span>Details</span></div>
-        <StrategyView item={item} />
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span>Notes</span>
-          {detail.notesSaving && <span className={styles.saving}>Saving…</span>}
-        </div>
-        <textarea
-          className={styles.notesTextarea}
-          value={detail.notes}
-          placeholder="Add notes…"
-          onChange={(e) => detail.setNotes(e.target.value)}
-          onBlur={(e) => detail.saveNotes(e.target.value)}
-          rows={4}
-        />
-      </div>
+      {isLocalGame ? (
+        <GameDetailColumns itemId={item.id} folderPath={item.folder_path}>
+          {sections}
+        </GameDetailColumns>
+      ) : (
+        <>
+          {sections}
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}><span>Details</span></div>
+            <StrategyView item={item} />
+          </div>
+        </>
+      )}
 
       {showEdit && (
         <EditItemModal

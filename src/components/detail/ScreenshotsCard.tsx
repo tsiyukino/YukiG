@@ -1,19 +1,15 @@
 /**
  * Collapsible screenshots preview for a user-set folder: loads the folder's
- * images lazily on first expand, shows a thumbnail grid, and opens a clicked
- * image with the system viewer. Shared by local and Steam games — both point
- * it at whatever folder the user configured.
+ * image list lazily on first expand and renders each as a canvas-downscaled
+ * thumbnail (see ScreenshotThumb), so hundreds of full-resolution screenshots
+ * do not stall the webview. Clicking a tile opens the original with the system
+ * viewer. Shared by local and Steam games.
  */
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Image } from "lucide-react";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { folderListImages, FolderImage, shellOpenPath } from "@/services/tauriCommands";
+import ScreenshotThumb from "./ScreenshotThumb";
 import styles from "./ScreenshotsCard.module.css";
-
-/** Thumbnails rendered when the card first opens. */
-const INITIAL_VISIBLE = 24;
-/** Thumbnails added per "Show more" click. */
-const SHOW_MORE_STEP = 48;
 
 interface ScreenshotsCardProps {
   /** Absolute path of the screenshots folder. */
@@ -21,14 +17,11 @@ interface ScreenshotsCardProps {
 }
 
 /**
- * Renders the collapsible screenshots grid. Thumbnails render incrementally
- * (initial batch + "Show more") — mounting hundreds of full-size images at
- * once stalls the webview on decode.
+ * Renders the collapsible screenshots grid.
  */
 export default function ScreenshotsCard({ folder }: ScreenshotsCardProps) {
   const [open, setOpen] = useState(false);
   const [images, setImages] = useState<FolderImage[] | null>(null);
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [error, setError] = useState<string | null>(null);
 
   function toggle() {
@@ -57,35 +50,16 @@ export default function ScreenshotsCard({ folder }: ScreenshotsCardProps) {
             <p className={styles.empty}>No images in this folder yet.</p>
           )}
           {images !== null && images.length > 0 && (
-            <>
-              <div className={styles.grid}>
-                {images.slice(0, visibleCount).map((img) => (
-                  <button
-                    key={img.path}
-                    className={styles.thumbBtn}
-                    onClick={() => shellOpenPath(img.path).catch(() => {})}
-                    title={img.filename}
-                  >
-                    <img
-                      className={styles.thumb}
-                      src={convertFileSrc(img.path)}
-                      alt={img.filename}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </button>
-                ))}
-              </div>
-              {images.length > visibleCount && (
-                <button
-                  className={styles.showMore}
-                  onClick={() => setVisibleCount((n) => n + SHOW_MORE_STEP)}
-                >
-                  Show {Math.min(SHOW_MORE_STEP, images.length - visibleCount)} more
-                  ({images.length - visibleCount} hidden)
-                </button>
-              )}
-            </>
+            <div className={styles.grid}>
+              {images.map((img) => (
+                <ScreenshotThumb
+                  key={img.path}
+                  path={img.path}
+                  filename={img.filename}
+                  onOpen={() => shellOpenPath(img.path).catch(() => {})}
+                />
+              ))}
+            </div>
           )}
         </div>
       )}

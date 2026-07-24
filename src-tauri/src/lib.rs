@@ -6,6 +6,7 @@ pub mod strategies;
 pub mod tray;
 
 use commands::collection_commands::*;
+use commands::folder_commands::*;
 use commands::game_status_commands::*;
 use commands::item_commands::*;
 use commands::play_session_commands::*;
@@ -155,6 +156,9 @@ pub fn run() {
             thumbnail_set,
             // Preview commands
             preview_get,
+            // Folder browsing commands
+            folder_list_images,
+            folder_tree,
             // Watcher commands
             watcher_add,
             watcher_remove,

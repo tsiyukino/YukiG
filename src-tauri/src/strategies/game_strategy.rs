@@ -139,6 +139,12 @@ impl FolderStrategy for GameStrategy {
                 required: false,
                 field_type: "folder_path".to_string(),
             },
+            MetadataField {
+                key: "save_folder".to_string(),
+                label: "Saves Folder".to_string(),
+                required: false,
+                field_type: "folder_path".to_string(),
+            },
         ]
     }
 }

@@ -11,6 +11,7 @@
  */
 
 export * from "./commands/collections";
+export * from "./commands/folders";
 export * from "./commands/items";
 export * from "./commands/play";
 export * from "./commands/tags";

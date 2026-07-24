@@ -1,4 +1,5 @@
 pub mod collection_commands;
+pub mod folder_commands;
 pub mod game_status_commands;
 pub mod game_suggest_commands;
 pub mod icon_commands;

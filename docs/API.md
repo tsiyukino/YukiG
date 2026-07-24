@@ -171,6 +171,22 @@ All commands return `Result<T, String>` (Tauri requirement). Error strings are f
 - **Owner**: `commands/preview_commands.rs`
 - **Note**: For images and PDFs, `content` is base64-encoded. For text, `content` is raw UTF-8 truncated to 32 KiB. Frontend wraps images in a data URI: `data:{mime_type};base64,{content}`.
 
+## Folder Browsing
+
+### `folder_list_images`
+- **Parameters**: `path: string`
+- **Returns**: `FolderImage[]` — `{ path, filename, size, timestamp }`, newest first; non-recursive, image extensions only
+- **Errors**: Path missing, not a directory, or unreadable
+- **Owner**: `commands/folder_commands.rs` (logic in `services/fs_browse.rs`)
+- **Note**: Backs the Screenshots preview grid for any user-set screenshots folder — local and Steam games share it.
+
+### `folder_tree`
+- **Parameters**: `path: string`, `max_depth: number`
+- **Returns**: `FolderTreeNode` — `{ name, path, is_dir, size, children, truncated }`; directories sort first, capped at 800 nodes total
+- **Errors**: Path missing, not a directory, or unreadable
+- **Owner**: `commands/folder_commands.rs` (logic in `services/fs_browse.rs`)
+- **Note**: Backs the Mods file-tree preview on the game detail page. `truncated` marks nodes whose children were cut off by the depth limit or node budget.
+
 ## Watcher
 
 ### `watcher_add`

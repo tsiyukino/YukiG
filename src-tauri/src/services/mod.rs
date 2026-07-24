@@ -4,6 +4,7 @@
 /// Currently a placeholder module to satisfy the project structure.
 pub mod config;
 pub mod file_watcher;
+pub mod fs_browse;
 pub mod launcher;
 pub mod preview;
 pub mod process_tracker;
